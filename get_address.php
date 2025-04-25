@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         // Fetch address details
-        $stmt = $pdo->prepare("SELECT * FROM tbl_direcciones WHERE id_direccion = ?");
+        $stmt = $pdo->prepare("SELECT * FROM tbl_direcciones WHERE id_direccion = ? and bit_activa = 1");
         $stmt->execute([$id_direccion]);
         $address = $stmt->fetch(PDO::FETCH_ASSOC);
 

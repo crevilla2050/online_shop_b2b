@@ -16,26 +16,57 @@ if (!isset($_SESSION['usuario'])) {
 }
 
 require_once("dbConn.php"); // conexión a la base de datos
+require_once("dbConnCP.php"); // conexión a la base de datos para codigos postales
 
 // Obtiebne datos del formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chr_direccion'])) {
-    $client_id_post = intval($_POST['client_id']);
-    $chr_direccion = htmlspecialchars($_POST['chr_direccion']);
-    $chr_calle = htmlspecialchars($_POST['chr_calle']);
-    $chr_numero = htmlspecialchars($_POST['chr_numero']);
-    $chr_interior = htmlspecialchars($_POST['chr_interior']);
-    $codigo_postal = htmlspecialchars($_POST['chr_codigo_postal']);
-    $tipo_direccion = htmlspecialchars($_POST['chr_tipo_direccion']);
-    $bit_default = isset($_POST['bit_default']) ? 1 : 0;
-    $id_ciudad = isset($_POST['id_ciudad']) ? intval($_POST['id_ciudad']) : null;
-
-    // Concatenate address parts into one string
-    $direccion_parts = array_filter([$chr_direccion, $chr_calle, $chr_numero, $chr_interior]);
-    $direccion = implode(' ', $direccion_parts);
-
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $client_id_post = intval($_POST['client_id']);
+        $id_direccion_post = isset($_POST['id_direccion']) && !empty($_POST['id_direccion']) ? intval($_POST['id_direccion']) : null;
+        $chr_direccion = htmlspecialchars($_POST['chr_direccion']);
+        $chr_calle = htmlspecialchars($_POST['chr_calle']);
+        $chr_numero = htmlspecialchars($_POST['chr_numero']);
+        $chr_interior = htmlspecialchars($_POST['chr_interior']);
+        $codigo_postal = htmlspecialchars($_POST['chr_codigo_postal']);
+        $tipo_direccion = htmlspecialchars($_POST['chr_tipo_direccion']);
+        $bit_default = isset($_POST['bit_default']) ? 1 : 0;
+        $id_ciudad = isset($_POST['id_ciudad']) ? intval($_POST['id_ciudad']) : null;
+        $chr_colonia = isset($_POST['chr_colonia']) ? htmlspecialchars($_POST['chr_colonia']) : '';
+        $id_colonia = isset($_POST['id_colonia']) ? intval($_POST['id_colonia']) : null;
+
+        // Concatenate address parts into one string
+        $direccion_parts = array_filter([$chr_direccion, $chr_calle, $chr_numero, $chr_interior]);
+        $direccion = implode(' ', $direccion_parts);
+
+        // Map postal code string to id_codigo_postal
+        $id_codigo_postal = null;
+        $stmtCP = $pdoCP->prepare("SELECT id_ciudad FROM postal_codes_view WHERE codigo_postal = ?");
+        $stmtCP->execute([$codigo_postal]);
+        $postalCodeRow = $stmtCP->fetch(PDO::FETCH_ASSOC);
+        if ($postalCodeRow) {
+            // Unpack binary id_ciudad to int if needed
+            if (isset($postalCodeRow['id_ciudad']) && is_string($postalCodeRow['id_ciudad'])) {
+                $unpacked = unpack('N', $postalCodeRow['id_ciudad']);
+                if ($unpacked !== false && isset($unpacked[1])) {
+                    $id_codigo_postal = $unpacked[1];
+                }
+            } else {
+                $id_codigo_postal = $postalCodeRow['id_ciudad'];
+            }
+        } else {
+            throw new Exception("Código postal no encontrado en la base de datos.");
+        }
+
+        // Map tipo_direccion string to id_tipo_direccion
+        $id_tipo_direccion = null;
+        $stmtTipo = $pdo->prepare("SELECT id_tipos_direcciones FROM tbl_tipos_direcciones WHERE chr_tipo_direccion = ?");
+        $stmtTipo->execute([$tipo_direccion]);
+        $tipoRow = $stmtTipo->fetch(PDO::FETCH_ASSOC);
+        if ($tipoRow) {
+            $id_tipo_direccion = $tipoRow['id_tipos_direcciones'];
+        } else {
+            throw new Exception("Tipo de dirección no encontrado en la base de datos.");
+        }
 
         // si la nueva direccion es la principal, actualiza la anterior a no principal
         if ($bit_default) {
@@ -43,14 +74,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chr_direccion'])) {
             $stmt->execute([$client_id_post]);
         }
 
-        // Inserta nueva dirección
-        $stmt = $pdo->prepare("INSERT INTO tbl_direcciones (id_cliente, chr_direccion, chr_codigo_postal, chr_tipo_direccion, bit_default, id_ciudad) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$client_id_post, $direccion, $codigo_postal, $tipo_direccion, $bit_default, $id_ciudad]);
+        if ($id_direccion_post) {
+            // Actualiza dirección existente
+            $stmt = $pdo->prepare("UPDATE tbl_direcciones SET chr_direccion = ?, id_codigo_postal = ?, id_tipo_direccion = ?, bit_default = ?, id_colonia = ? WHERE id_direccion = ?");
+            $stmt->execute([$direccion, $id_codigo_postal, $id_tipo_direccion, $bit_default, $id_colonia, $id_direccion_post]);
+        } else {
+            // Inserta nueva dirección
+            $stmt = $pdo->prepare("INSERT INTO tbl_direcciones (id_cliente, chr_direccion, id_codigo_postal, id_tipo_direccion, bit_default, id_colonia) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$client_id_post, $direccion, $id_codigo_postal, $id_tipo_direccion, $bit_default, $id_colonia]);
+        }
 
         // Redirect para evitar re-envio del formulario
-        header("Location: detalle_cliente_final.php?id=" . $client_id_post);
+        header("Location: detalle_cliente.php?id=" . $client_id_post);
         exit;
 
+    } catch (Exception $e) {
+        die("Error al guardar la dirección: " . $e->getMessage());
     } catch (PDOException $e) {
         die("Error al guardar la dirección: " . $e->getMessage());
     }
@@ -60,10 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chr_direccion'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['id'])) {
     $id_direccion = intval($_GET['id']);
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        $stmt = $pdo->prepare("DELETE FROM tbl_direcciones WHERE id_direccion = ?");
+        $stmt = $pdo->prepare("UPDATE tbl_direcciones SET bit_activa = 0 WHERE id_direccion = ?");
         $stmt->execute([$id_direccion]);
 
         echo json_encode(['success' => true]);
@@ -82,10 +118,12 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $client_id = intval($_GET['id']);
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+// Set client ID in session for menu.php usage
+if (!isset($_SESSION['usuario']['id_cliente']) || $_SESSION['usuario']['id_cliente'] != $client_id) {
+    $_SESSION['usuario']['id_cliente'] = $client_id;
+}
 
+try {
     // Obtener info del cliente
     $stmt = $pdo->prepare("SELECT * FROM tbl_clientes WHERE id_cliente = ?");
     $stmt->execute([$client_id]);
@@ -95,15 +133,71 @@ try {
         die("Cliente no encontrado.");
     }
 
-    // Buscar dirección para el cliente, incluyendo ciudad and colonia from tbl_postal_colonias
-    $stmt = $pdo->prepare("
-        SELECT d.*, pc.ciudad, pc.colonia
-        FROM tbl_direcciones d
-        LEFT JOIN tbl_postal_colonias pc ON d.chr_codigo_postal COLLATE utf8mb4_0900_ai_ci = pc.codigo_postal COLLATE utf8mb4_0900_ai_ci
-        WHERE d.id_cliente = ?
-    ");
+    // Obtener suma total de créditos activos del cliente desde tbl_creditos_empresa
+    $stmtCredito = $pdo->prepare("SELECT COALESCE(SUM(fl_monto_credito), 0) AS total_credito FROM tbl_creditos_empresa WHERE id_cliente = ? AND bit_activo = 1");
+    $stmtCredito->execute([$client_id]);
+    $creditoRow = $stmtCredito->fetch(PDO::FETCH_ASSOC);
+    $total_credito_empresa = $creditoRow ? $creditoRow['total_credito'] : 0;
+
+    // Obtener todas las líneas de crédito activas del cliente desde tbl_creditos_empresa
+    $stmtCreditosDetalles = $pdo->prepare("SELECT id_credito_empresa, fl_monto_credito, dt_fecha_creacion FROM tbl_creditos_empresa WHERE id_cliente = ? AND bit_activo = 1 ORDER BY dt_fecha_creacion DESC");
+    $stmtCreditosDetalles->execute([$client_id]);
+    $creditos_detalles = $stmtCreditosDetalles->fetchAll(PDO::FETCH_ASSOC);
+
+    // Buscar direcciones para el cliente desde tbl_direcciones
+    $stmt = $pdo->prepare("SELECT * FROM tbl_direcciones WHERE id_cliente = ? AND bit_activa = 1");
     $stmt->execute([$client_id]);
-    $addresses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $direcciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $addresses = [];
+
+    foreach ($direcciones as $direccion) {
+        // Obtener info de codigo postal desde db_codigos_postales.postal_codes_view
+        $stmtCP = $pdoCP->prepare("SELECT * FROM postal_codes_view");
+        $stmtCP->execute();
+        $postalCodes = $stmtCP->fetchAll(PDO::FETCH_ASSOC);
+
+        $postalInfo = null;
+        foreach ($postalCodes as $pc) {
+            // Unpack binary id_ciudad and id_colonia to integers
+            $idCiudadInt = null;
+            $idColoniaInt = null;
+            if (isset($pc['id_ciudad']) && is_string($pc['id_ciudad'])) {
+                $unpackedCiudad = unpack('N', substr($pc['id_ciudad'], 0, 4));
+                if ($unpackedCiudad !== false && isset($unpackedCiudad[1])) {
+                    $idCiudadInt = $unpackedCiudad[1];
+                }
+            }
+            if (isset($pc['id_colonia']) && is_string($pc['id_colonia'])) {
+                $unpackedColonia = unpack('N', substr($pc['id_colonia'], 0, 4));
+                if ($unpackedColonia !== false && isset($unpackedColonia[1])) {
+                    $idColoniaInt = $unpackedColonia[1];
+                }
+            }
+
+            if ($idCiudadInt === intval($direccion['id_codigo_postal']) && $idColoniaInt === intval($direccion['id_colonia'])) {
+                $postalInfo = $pc;
+                break;
+            }
+        }
+
+        // Obtener tipo de direccion desde tbl_tipos_direcciones
+        $stmtTipo = $pdo->prepare("SELECT chr_tipo_direccion FROM tbl_tipos_direcciones WHERE id_tipos_direcciones = ?");
+        $stmtTipo->execute([$direccion['id_tipo_direccion']]);
+        $tipoDireccion = $stmtTipo->fetch(PDO::FETCH_ASSOC);
+
+        $addresses[] = [
+            'id_direccion' => $direccion['id_direccion'],
+            'chr_direccion' => $direccion['chr_direccion'],
+            'chr_codigo_postal' => $postalInfo['codigo_postal'] ?? '',
+            'ciudad' => $postalInfo['ciudad'] ?? '',
+            'estado' => $postalInfo['estado'] ?? '',
+            'municipio' => $postalInfo['municipio'] ?? '',
+            'colonia' => $postalInfo['colonia'] ?? '',
+            'chr_tipo_direccion' => $tipoDireccion['chr_tipo_direccion'] ?? '',
+            'bit_default' => $direccion['bit_default']
+        ];
+    }
 
     // Obtener tipos de direcciones para el dropdown
     $stmt = $pdo->prepare("SELECT * FROM tbl_tipos_direcciones ORDER BY chr_tipo_direccion ASC");
@@ -142,6 +236,9 @@ try {
     </style>
 </head>
 <script>
+    // Embed first address data for pre-populating modal on page load
+    const firstAddress = <?php echo json_encode($addresses[0] ?? null); ?>;
+
     // Function to clear address fields
     function clearAddressFields() {
         document.getElementById('chr_ciudad').value = '';
@@ -155,13 +252,17 @@ try {
     function populateColonias(colonias, selected = '') {
         const select = document.getElementById('chr_colonia_select');
         const input = document.getElementById('chr_colonia_input');
+        const hiddenColoniaId = document.getElementById('id_colonia');
         select.innerHTML = '<option value="">Seleccione una colonia</option>';
 
         colonias.forEach(colonia => {
             const option = document.createElement('option');
-            option.value = colonia;
-            option.textContent = colonia;
-            if (colonia === selected) option.selected = true;
+            option.value = colonia.id;
+            option.textContent = colonia.name;
+            if (colonia.name === selected) {
+                option.selected = true;
+                hiddenColoniaId.value = colonia.id;
+            }
             select.appendChild(option);
         });
 
@@ -170,13 +271,17 @@ try {
         otherOption.textContent = 'Otra...';
         select.appendChild(otherOption);
 
-        if (selected && !colonias.includes(selected)) {
+        if (selected && !colonias.some(c => c.name === selected)) {
             select.value = '_otra';
             input.classList.remove('d-none');
             input.value = selected;
+            hiddenColoniaId.value = '';
         } else {
             input.classList.add('d-none');
             input.value = '';
+            if (select.value !== '_otra') {
+                hiddenColoniaId.value = select.value;
+            }
         }
     }
 
@@ -195,23 +300,14 @@ try {
 
     // Function to search postal code
     function buscarCodigoPostal(codigo, selectedColonia = '') {
-        console.log('buscarCodigoPostal called with codigo:', codigo);
         if (!/^\d{5}$/.test(codigo)) {
-            console.log('Invalid postal code format');
             clearAddressFields();
             return;
         }
 
-        const url = 'ajax_codigo_postal.php?codigo=' + codigo;
-        console.log('Fetching URL:', url);
-
-        fetch(url)
-            .then(response => {
-                console.log('Fetch response status:', response.status);
-                return response.json();
-            })
+        fetch('ajax_codigo_postal.php?codigo=' + encodeURIComponent(codigo))
+            .then(response => response.json())
             .then(data => {
-                console.log('Fetch response data:', data);
                 if (data.error) {
                     alert(data.error);
                     clearAddressFields();
@@ -242,20 +338,25 @@ try {
         const addressFormModalElement = document.getElementById('addressFormModal');
 
         chr_colonia_select.addEventListener('change', function() {
+            const hiddenColoniaId = document.getElementById('id_colonia');
             if (this.value === '_otra') {
                 chr_colonia_input.classList.remove('d-none');
                 chr_colonia_input.required = true;
+                hiddenColoniaId.value = '';
             } else {
                 chr_colonia_input.classList.add('d-none');
                 chr_colonia_input.required = false;
                 chr_colonia_input.value = '';
+                hiddenColoniaId.value = this.value;
             }
         });
 
         addressForm.addEventListener('submit', function() {
             const selected = chr_colonia_select.value;
+            const hiddenColoniaId = document.getElementById('id_colonia');
             if (selected !== '_otra') {
                 chr_colonia_input.value = selected;
+                hiddenColoniaId.value = selected;
             }
         });
 
@@ -268,38 +369,9 @@ try {
             if (form) form.reset();
             document.getElementById('id_direccion').value = '';
             clearColonias();
-const addressFormModal = new bootstrap.Modal(addressFormModalElement);
-addressFormModal.show();
-console.log("Address form modal shown for address ID:", addressId); // Debug log
+            const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+            addressFormModal.show();
         });
-
-        function populateAddressForm(addressId) {
-            fetch(`get_address.php?id=${addressId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                    } else {
-                        document.getElementById('id_direccion').value = data.id_direccion || '';
-                        document.getElementById('chr_direccion').value = data.chr_direccion || '';
-                        document.getElementById('chr_codigo_postal').value = data.chr_codigo_postal || '';
-                        document.getElementById('chr_ciudad').value = data.ciudad || '';
-                        document.getElementById('chr_estado').value = data.estado || '';
-                        document.getElementById('chr_municipio').value = data.municipio || '';
-                        document.getElementById('id_ciudad').value = data.id_ciudad || '';
-                        document.getElementById('chr_tipo_direccion').value = data.chr_tipo_direccion || '';
-                        document.getElementById('bit_default').checked = data.bit_default == 1;
-
-                        buscarCodigoPostal(data.chr_codigo_postal, data.colonia);
-
-                        const addressFormModal = new bootstrap.Modal(addressFormModalElement);
-                        addressFormModal.show();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        }
 
         deleteAddressBtn.addEventListener('click', function() {
             const addressId = document.getElementById('id_direccion').value;
@@ -322,11 +394,78 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
             }
         });
     });
+
+    // Make populateAddressForm global for inline onclick usage
+    function populateAddressForm(addressId) {
+        const addressFormModalElement = document.getElementById('addressFormModal');
+        fetch(`get_address.php?id=${addressId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('id_direccion').value = data.id_direccion || '';
+                    document.getElementById('chr_direccion').value = data.chr_direccion || '';
+                    document.getElementById('chr_codigo_postal').value = data.chr_codigo_postal || '';
+                    document.getElementById('chr_ciudad').value = data.ciudad || '';
+                    document.getElementById('chr_estado').value = data.estado || '';
+                    document.getElementById('chr_municipio').value = data.municipio || '';
+                    document.getElementById('chr_tipo_direccion').value = data.chr_tipo_direccion || '';
+                    document.getElementById('bit_default').checked = data.bit_default == 1;
+
+                    // Determine if chr_codigo_postal is a 5-digit string or numeric ID
+                    let codigoPostalRaw = data.chr_codigo_postal || '';
+                    let trimmedCodigoPostal = '';
+
+                    if (/^\d{5}$/.test(codigoPostalRaw)) {
+                        // Already a 5-digit postal code string
+                        trimmedCodigoPostal = codigoPostalRaw.trim();
+                        buscarCodigoPostal(trimmedCodigoPostal, data.colonia);
+                        const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                        addressFormModal.show();
+                    } else if (codigoPostalRaw) {
+                        // Assume numeric ID, fetch 5-digit postal code string first
+                        fetch(`get_postal_code_string.php?id=${encodeURIComponent(codigoPostalRaw)}`)
+                            .then(response => response.json())
+                            .then(postalCodeData => {
+                                if (postalCodeData.error) {
+                                    alert(postalCodeData.error);
+                                    document.getElementById('chr_ciudad').value = '';
+                                    document.getElementById('chr_estado').value = '';
+                                    document.getElementById('chr_municipio').value = '';
+                                    populateColonias([], '');
+                                } else {
+                                    trimmedCodigoPostal = postalCodeData.codigo_postal || '';
+                                    buscarCodigoPostal(trimmedCodigoPostal, data.colonia);
+                                }
+                                const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                                addressFormModal.show();
+                            })
+                            .catch(error => {
+                                console.error('Error fetching postal code string:', error);
+                                const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                                addressFormModal.show();
+                            });
+                    } else {
+                        // No postal code provided
+                        document.getElementById('chr_ciudad').value = '';
+                        document.getElementById('chr_estado').value = '';
+                        document.getElementById('chr_municipio').value = '';
+                        populateColonias([], '');
+                        const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                        addressFormModal.show();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
 </script>
 
 <body>
     <?php include 'menu.php'; ?>
-    <div class="container-fluid mt-5" style="margin-left: 220px;">
+    <div class="container mt-5" style="margin-left: 220px;">
         <h2>Detalle del Cliente: <?= htmlspecialchars($client['chr_nombre']) ?></h2>
         <div class="card mt-3">
             <div class="card-header bg-primary text-white">
@@ -338,11 +477,13 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
                 <p><strong>Email:</strong> <?= htmlspecialchars($client['chr_email']) ?></p>
                 <p><strong>Teléfono:</strong> <?= htmlspecialchars($client['chr_telefono']) ?></p>
                 <p><strong>Es Empresa:</strong> <?= $client['bit_es_empresa'] ? 'Sí' : 'No' ?></p>
-                <?php if ($client['bit_es_empresa']): ?>
-                    <p><strong>Nombre de la Empresa:</strong> <?= htmlspecialchars($client['chr_nombre_empresa']) ?></p>
-                    <p><strong>RFC:</strong> <?= htmlspecialchars($client['chr_tax_id']) ?></p>
-                <?php endif; ?>
-                <p><strong>Límite de Crédito:</strong> $<?= number_format($client['fl_limite_credito_total'], 2) ?></p>
+<?php if ($client['bit_es_empresa']): ?>
+                <p><strong>Nombre de la Empresa:</strong> <?= htmlspecialchars($client['chr_nombre_empresa']) ?></p>
+                <p><strong>RFC:</strong> <?= htmlspecialchars($client['chr_RFC']) ?></p>
+<?php endif; ?>
+                <p><strong>Límite de Crédito:</strong> $<?= number_format($total_credito_empresa, 2) ?></p>
+                <button type="button" class="btn btn-info mt-2 me-2" data-bs-toggle="modal" data-bs-target="#creditosModal">Detalles</button>
+                <a href="asignar_credito.php?id=<?= htmlspecialchars($client_id) ?>" class="btn btn-primary mt-2">Asignar Nuevo Crédito</a>
             </div>
         </div>
 
@@ -419,7 +560,7 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
             </div>
         </div>
 
-        <a href="users.php" class="btn btn-secondary mt-4">Volver a Usuarios</a>
+        <a href="listado_usuarios.php" class="btn btn-secondary mt-4">Volver a Usuarios</a>
 
         <button id="showAddressFormBtn" class="btn btn-success mt-3">Asignar Dirección</button>
     <!-- Address Form Modal -->
@@ -434,6 +575,7 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
                     <div class="modal-body">
                     <input type="hidden" id="id_direccion" name="id_direccion">
                     <input type="hidden" id="id_ciudad" name="id_ciudad">
+                    <input type="hidden" id="id_colonia" name="id_colonia" value="">
                     <input type="hidden" name="client_id" value="<?= htmlspecialchars($client_id) ?>">
 
                     <div class="mb-3">
@@ -443,7 +585,7 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
 
                     <div class="mb-3">
                         <label for="chr_codigo_postal" class="form-label">Código Postal</label>
-                        <input type="text" class="form-control" id="chr_codigo_postal" name="chr_codigo_postal" pattern="\\d{5}" maxlength="5" required>
+                        <input type="text" class="form-control" id="chr_codigo_postal" name="chr_codigo_postal" pattern="\d{5}" maxlength="5" required>
                     </div>
 
                     <div class="mb-3">
@@ -515,13 +657,17 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
             function populateColonias(colonias, selected = '') {
                 const select = document.getElementById('chr_colonia_select');
                 const input = document.getElementById('chr_colonia_input');
+                const hiddenColoniaId = document.getElementById('id_colonia');
                 select.innerHTML = '<option value="">Seleccione una colonia</option>';
 
                 colonias.forEach(colonia => {
                     const option = document.createElement('option');
-                    option.value = colonia;
-                    option.textContent = colonia;
-                    if (colonia === selected) option.selected = true;
+                    option.value = colonia.id;
+                    option.textContent = colonia.name;
+                    if (colonia.name === selected) {
+                        option.selected = true;
+                        hiddenColoniaId.value = colonia.id;
+                    }
                     select.appendChild(option);
                 });
 
@@ -530,13 +676,17 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
                 otherOption.textContent = 'Otra...';
                 select.appendChild(otherOption);
 
-                if (selected && !colonias.includes(selected)) {
+                if (selected && !colonias.some(c => c.name === selected)) {
                     select.value = '_otra';
                     input.classList.remove('d-none');
                     input.value = selected;
+                    hiddenColoniaId.value = '';
                 } else {
                     input.classList.add('d-none');
                     input.value = '';
+                    if (select.value !== '_otra') {
+                        hiddenColoniaId.value = select.value;
+                    }
                 }
             }
 
@@ -657,22 +807,108 @@ console.log("Address form modal shown for address ID:", addressId); // Debug log
                             document.getElementById('id_direccion').value = data.id_direccion || '';
                             document.getElementById('chr_direccion').value = data.chr_direccion || '';
                             document.getElementById('chr_codigo_postal').value = data.chr_codigo_postal || '';
-                            document.getElementById('chr_ciudad').value = data.ciudad || '';
-                            document.getElementById('chr_estado').value = data.estado || '';
-                            document.getElementById('chr_municipio').value = data.municipio || '';
                             document.getElementById('chr_tipo_direccion').value = data.chr_tipo_direccion || '';
                             document.getElementById('bit_default').checked = data.bit_default == 1;
 
-                            buscarCodigoPostal(data.chr_codigo_postal, data.colonia);
+                    // Fetch detailed postal code info from ajax_codigo_postal.php
+                    let codigoPostalRaw = data.chr_codigo_postal || '';
+                    let trimmedCodigoPostal = '';
 
-                            const addressFormModal = new bootstrap.Modal(addressFormModalElement);
-                            addressFormModal.show();
+                    if (/^\d{5}$/.test(codigoPostalRaw)) {
+                        // Already a 5-digit postal code string
+                        trimmedCodigoPostal = codigoPostalRaw.trim();
+                        buscarCodigoPostal(trimmedCodigoPostal, data.colonia);
+                        const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                        addressFormModal.show();
+                    } else if (codigoPostalRaw) {
+                        // Assume numeric ID, fetch 5-digit postal code string first
+                        fetch(`get_postal_code_string.php?id=${encodeURIComponent(codigoPostalRaw)}`)
+                            .then(response => response.json())
+                            .then(postalCodeData => {
+                                if (postalCodeData.error) {
+                                    alert(postalCodeData.error);
+                                    document.getElementById('chr_ciudad').value = '';
+                                    document.getElementById('chr_estado').value = '';
+                                    document.getElementById('chr_municipio').value = '';
+                                    populateColonias([], '');
+                                } else {
+                                    trimmedCodigoPostal = postalCodeData.codigo_postal || '';
+                                    buscarCodigoPostal(trimmedCodigoPostal, data.colonia);
+                                }
+                                const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                                addressFormModal.show();
+                            })
+                            .catch(error => {
+                                console.error('Error fetching postal code string:', error);
+                                const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                                addressFormModal.show();
+                            });
+                    } else {
+                        // No postal code provided
+                        document.getElementById('chr_ciudad').value = '';
+                        document.getElementById('chr_estado').value = '';
+                        document.getElementById('chr_municipio').value = '';
+                        populateColonias([], '');
+                        const addressFormModal = new bootstrap.Modal(addressFormModalElement);
+                        addressFormModal.show();
+                    }
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
                     });
             }
-        </script>
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnClose = document.querySelector('.btn-close');
+        if (btnClose) {
+            btnClose.addEventListener('click', function() {
+                const addressFormModal = bootstrap.Modal.getInstance(document.getElementById('addressFormModal'));
+                if (addressFormModal) {
+                    addressFormModal.hide();
+                }
+            });
+        }
+    });
+</script>
+    <!-- Modal para mostrar detalles de líneas de crédito -->
+    <div class="modal fade" id="creditosModal" tabindex="-1" aria-labelledby="creditosModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="creditosModalLabel">Líneas de Crédito Activas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <?php if (empty($creditos_detalles)): ?>
+                        <p>No hay líneas de crédito activas para este cliente.</p>
+                    <?php else: ?>
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID Crédito</th>
+                                    <th>Monto Crédito</th>
+                                    <th>Fecha Creación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($creditos_detalles as $credito): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($credito['id_credito_empresa']) ?></td>
+                                    <td>$<?= number_format($credito['fl_monto_credito'], 2) ?></td>
+                                    <td><?= htmlspecialchars($credito['dt_fecha_creacion']) ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

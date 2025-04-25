@@ -4,11 +4,12 @@
 // **1. Define Menu Items (Hierarchical Structure)**
 $menu_items = array(
     "plaza.php" => "Inicio",
+    "products.php" => "Productos",
     "Datos Empresa" => array(
         "detalle_cliente.php" => "Datos fiscales", // Original entry
         "under_construction.php" => "Documentos",
         "under_construction.php" => "Accesos",
-        "under_construction.php" => "Linea de crédito"
+        "linea_de_credito.php" => "Linea de crédito"
     ),
     "Pedidos" => array(
         "under_construction.php" => "Por Autorizar",
@@ -54,10 +55,17 @@ foreach ($menu_items as $key => $value) {
         echo '<ul class="list-unstyled">';
         foreach ($value as $url => $label) {
             $active_class = ($url == $current_page) ? ' class="active"' : '';
-            if ($url === "detalle_cliente.php") {
-                $client_id = $_SESSION['usuario']['client_id'] ?? ''; // Assuming client_id is stored in the session
-                $url .= '?id=' . htmlspecialchars($client_id);
-            }
+if ($url === "detalle_cliente.php" || $url === "linea_de_credito.php") {
+    $client_id = $_SESSION['usuario']['id_cliente'] ?? $_SESSION['usuario']['client_id'] ?? '';
+    if ($client_id) {
+        // Check if URL already has query parameters
+        if (strpos($url, '?') === false) {
+            $url .= '?id=' . htmlspecialchars($client_id);
+        } else {
+            $url .= '&id=' . htmlspecialchars($client_id);
+        }
+    }
+}
             echo '<li><a href="' . htmlspecialchars($url) . '"' . $active_class . '>' . htmlspecialchars($label) . '</a></li>';
         }
         echo '</ul>';

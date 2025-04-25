@@ -1,12 +1,14 @@
 <?php
 // Enable error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 // Enable detailed error reporting to output
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 
+ 
+//require_once 'dbConn.php'; // This will provide the $pdo variable
 require_once 'dbConnCP.php'; // This will provide the $pdo variable
 
 header('Content-Type: application/json');
@@ -19,43 +21,31 @@ if (!isset($_GET['codigo']) || strlen($_GET['codigo']) < 5) {
     exit;
 }
 
-if (!$pdo) {
+if (!$pdoCP) {
     error_log("Error de conexión a la base de datos");
     echo json_encode(['error' => 'Error de conexión a la base de datos']);
     exit;
 }
 
 $codigo = $_GET['codigo'];
+error_log("Received codigo: " . $codigo);
 
 try {
-    $test = $pdo->query("SELECT 1")->fetch();
+    $test = $pdoCP->query("SELECT 1")->fetch();
     if (!$test) {
         throw new PDOException("Test query failed");
     }
 
-    $query = "SELECT 
-    `c`.`id` AS `id`,
-    `s`.`name` AS `estado`,
-    `m`.`name` AS `municipio`,
-    `c`.`name` AS `ciudad`,
-    `se`.`name` AS `colonia`,
-    `pc`.`code` AS `codigo_postal`
-    FROM
-    `db_codigos_postales`.`catalog_postal_codes` `cp`
-    JOIN `db_codigos_postales`.`state` `s` ON `s`.`id` = `cp`.`state_id`
-    JOIN `db_codigos_postales`.`municipality` `m` ON `m`.`id` = `cp`.`municipality_id`
-    JOIN `db_codigos_postales`.`city` `c` ON `c`.`id` = `cp`.`city_id`
-    JOIN `db_codigos_postales`.`settlement` `se` ON `se`.`id` = `cp`.`settlement_id`
-    JOIN `db_codigos_postales`.`postal_code` `pc` ON `pc`.`id` = `cp`.`postal_code_id`
-    WHERE pc.code = :codigo";
+    $query = "SELECT * FROM db_codigos_postales.postal_codes_view where codigo_postal = :codigo";
 
-    $stmt = $pdo->prepare($query);
+    $stmt = $pdoCP->prepare($query);
     $stmt->bindParam(':codigo', $codigo);
     $stmt->execute();
 
     error_log("Query executed, fetching results");
 
     $result = $stmt->fetchAll();
+    error_log("Number of results fetched: " . count($result));
 
     if (empty($result)) {
         error_log("No results found for postal code: $codigo");
@@ -65,16 +55,17 @@ try {
 
     $first = $result[0];
     $colonias = array_map(function($row) {
-        return $row['colonia'];
+        return [
+            'id' => (isset($row['id_colonia']) && is_string($row['id_colonia'])) ? unpack('N', substr($row['id_colonia'], 0, 4))[1] : null,
+            'name' => isset($row['colonia']) ? $row['colonia'] : null
+        ];
     }, $result);
 
-    // Convert binary id to integer
-    $idCiudadBinary = $first['id'];
+    // Convert binary(16) id_ciudad to integer equivalent (first 4 bytes)
     $idCiudadInt = null;
-    if (is_string($idCiudadBinary)) {
-        // Assuming the binary is a 4-byte integer in network order
-        $unpacked = unpack('N', $idCiudadBinary);
-        if ($unpacked !== false) {
+    if (isset($first['id_ciudad']) && is_string($first['id_ciudad'])) {
+        $unpacked = unpack('N', substr($first['id_ciudad'], 0, 4));
+        if ($unpacked !== false && isset($unpacked[1])) {
             $idCiudadInt = $unpacked[1];
         } else {
             $idCiudadInt = null;
@@ -82,20 +73,52 @@ try {
     }
 
     $response = [
-        'estado' => $first['estado'],
-        'municipio' => $first['municipio'],
-        'ciudad' => $first['ciudad'],
+        'estado' => isset($first['estado']) ? $first['estado'] : null,
+        'municipio' => isset($first['municipio']) ? $first['municipio'] : null,
+        'ciudad' => isset($first['ciudad']) ? $first['ciudad'] : null,
         'id_ciudad' => $idCiudadInt,
-        'codigo_postal' => $first['codigo_postal'],
+        'codigo_postal' => isset($first['codigo_postal']) ? $first['codigo_postal'] : null,
         'colonias' => $colonias
     ];
 
-    error_log("Response prepared: " . json_encode($response));
+    // Ensure colonias array has only strings and integers
+    $colonias = array_map(function($colonia) {
+        return [
+            'id' => is_string($colonia['id']) ? $colonia['id'] : (int)$colonia['id'],
+            'name' => $colonia['name'] !== null ? (string)$colonia['name'] : null
+        ];
+    }, $colonias);
 
-    echo json_encode($response);
+    $response['colonias'] = $colonias;
+
+    // Helper function to recursively utf8 encode all strings in array
+    function utf8ize($mixed) {
+        if (is_array($mixed)) {
+            foreach ($mixed as $key => $value) {
+                $mixed[$key] = utf8ize($value);
+            }
+        } else if (is_string($mixed)) {
+            // Use iconv as fallback if mbstring is not available
+            return iconv('UTF-8', 'UTF-8//IGNORE', $mixed);
+        }
+        return $mixed;
+    }
+
+    $response = utf8ize($response);
+
+    $json_response = json_encode($response);
+    if ($json_response === false) {
+        error_log("JSON encode error: " . json_last_error_msg());
+        echo json_encode(['error' => 'JSON encode error', 'message' => json_last_error_msg()]);
+        exit;
+    }
+
+    error_log("Response prepared: " . $json_response);
+
+    echo $json_response;
 
 } catch (PDOException $e) {
-    $errorInfo = $pdo->errorInfo();
+    $errorInfo = $pdoCP->errorInfo();
     error_log("Database error: " . $e->getMessage());
     echo json_encode([
         'error' => 'Database error',

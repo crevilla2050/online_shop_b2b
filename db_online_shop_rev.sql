@@ -16,6 +16,30 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `id_direcciones_clientes`
+--
+
+DROP TABLE IF EXISTS `id_direcciones_clientes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `id_direcciones_clientes` (
+  `id_direcciones_clientes` int NOT NULL AUTO_INCREMENT,
+  `id_cliente` int NOT NULL,
+  `id_direccion` int NOT NULL,
+  PRIMARY KEY (`id_direcciones_clientes`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `id_direcciones_clientes`
+--
+
+LOCK TABLES `id_direcciones_clientes` WRITE;
+/*!40000 ALTER TABLE `id_direcciones_clientes` DISABLE KEYS */;
+/*!40000 ALTER TABLE `id_direcciones_clientes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `tbl_almacenes`
 --
 
@@ -26,10 +50,13 @@ CREATE TABLE `tbl_almacenes` (
   `id_almacen` int NOT NULL AUTO_INCREMENT,
   `chr_nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `id_direccion` int DEFAULT NULL,
+  `id_telefono` int DEFAULT NULL,
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_almacen`),
-  KEY `fk_tbl_almacenes_direcciones_idx` (`id_direccion`),
-  CONSTRAINT `fk_tbl_almacenes_direcciones` FOREIGN KEY (`id_direccion`) REFERENCES `tbl_direcciones` (`id_direccion`) ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `index2` (`id_direccion`),
+  KEY `index3` (`id_telefono`),
+  CONSTRAINT `fk_tbl_almacenes_1` FOREIGN KEY (`id_direccion`) REFERENCES `tbl_direcciones` (`id_direccion`),
+  CONSTRAINT `fk_tbl_almacenes_2` FOREIGN KEY (`id_telefono`) REFERENCES `tbl_telefonos` (`id_telefono`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -81,17 +108,13 @@ CREATE TABLE `tbl_clientes` (
   `chr_apellido` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `chr_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `chr_telefono` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   `dt_fecha_registro` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `bit_es_empresa` tinyint(1) NOT NULL DEFAULT '0',
-  `fl_limite_credito_total` decimal(10,2) NOT NULL DEFAULT '0.00',
   `chr_nombre_empresa` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `chr_tax_id` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `id_direccion_facturacion` int DEFAULT NULL,
+  `chr_RFC` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_cliente`),
-  UNIQUE KEY `chr_email_UNIQUE` (`chr_email`),
-  KEY `fk_tbl_clientes_direcciones_idx` (`id_direccion_facturacion`),
-  CONSTRAINT `fk_tbl_clientes_direcciones` FOREIGN KEY (`id_direccion_facturacion`) REFERENCES `tbl_direcciones` (`id_direccion`) ON DELETE SET NULL ON UPDATE CASCADE
+  UNIQUE KEY `chr_email_UNIQUE` (`chr_email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -101,7 +124,7 @@ CREATE TABLE `tbl_clientes` (
 
 LOCK TABLES `tbl_clientes` WRITE;
 /*!40000 ALTER TABLE `tbl_clientes` DISABLE KEYS */;
-INSERT INTO `tbl_clientes` VALUES (1,'TestUser','TestLast','test@example.com','123456789',1,'2025-04-14 04:44:14',1,0.00,NULL,'XAXX010101ABC',NULL);
+INSERT INTO `tbl_clientes` VALUES (1,'TestUser','TestLast','test@example.com','123456789','2025-04-14 04:44:14',1,'Mi empresita','XAXX010101ABC',1);
 /*!40000 ALTER TABLE `tbl_clientes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -242,7 +265,7 @@ CREATE TABLE `tbl_creditos_empresa` (
   PRIMARY KEY (`id_credito_empresa`),
   KEY `fk_creditos_empresa_clientes_idx` (`id_cliente`),
   CONSTRAINT `fk_creditos_empresa_clientes` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -251,6 +274,7 @@ CREATE TABLE `tbl_creditos_empresa` (
 
 LOCK TABLES `tbl_creditos_empresa` WRITE;
 /*!40000 ALTER TABLE `tbl_creditos_empresa` DISABLE KEYS */;
+INSERT INTO `tbl_creditos_empresa` VALUES (1,1,250000.00,1,'2025-04-25 06:00:00'),(2,1,100000.00,1,'2025-04-25 07:12:46');
 /*!40000 ALTER TABLE `tbl_creditos_empresa` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -391,18 +415,17 @@ CREATE TABLE `tbl_direcciones` (
   `id_direccion` int NOT NULL AUTO_INCREMENT,
   `id_cliente` int NOT NULL,
   `chr_direccion` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `id_ciudad` bigint unsigned NOT NULL,
-  `chr_codigo_postal` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `chr_tipo_direccion` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Billing, Shipping, etc.',
+  `id_codigo_postal` bigint NOT NULL,
   `id_tipo_direccion` int NOT NULL DEFAULT '1',
+  `id_colonia` bigint NOT NULL,
   `id_tipo_asentamiento` bigint NOT NULL DEFAULT '2435439259',
   `bit_default` tinyint(1) NOT NULL DEFAULT '0',
+  `bit_activa` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_direccion`),
   KEY `fk_tbl_direcciones_clientes_idx` (`id_cliente`),
   KEY `index4` (`id_tipo_direccion`),
-  KEY `fk_tbl_direcciones_2` (`id_tipo_asentamiento`),
+  KEY `index5` (`id_codigo_postal`),
   CONSTRAINT `fk_tbl_direcciones_1` FOREIGN KEY (`id_tipo_direccion`) REFERENCES `tbl_tipos_direcciones` (`id_tipos_direcciones`),
-  CONSTRAINT `fk_tbl_direcciones_2` FOREIGN KEY (`id_tipo_asentamiento`) REFERENCES `tbl_tipo_asentamiento` (`id_tipo_asentamiento`),
   CONSTRAINT `fk_tbl_direcciones_clientes` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -413,7 +436,7 @@ CREATE TABLE `tbl_direcciones` (
 
 LOCK TABLES `tbl_direcciones` WRITE;
 /*!40000 ALTER TABLE `tbl_direcciones` DISABLE KEYS */;
-INSERT INTO `tbl_direcciones` VALUES (1,1,'Calle Principal dir 2 100 1',2873680545,'68000','Envios',1,2435439259,1),(2,1,'Otra calle A 102 5',2873680545,'68000','Bodega/Almacen',1,2435439259,0);
+INSERT INTO `tbl_direcciones` VALUES (1,1,'Calle Principal dir 2 100 Inter. 1',2873680545,4,433601300,2435439259,0,1),(2,1,'dir 2 calle 3 numero 4',2873680545,1,508625272,2435439259,1,1);
 /*!40000 ALTER TABLE `tbl_direcciones` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -465,7 +488,7 @@ CREATE TABLE `tbl_documentos_tipos` (
   `chr_descripcion` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_documento_tipo`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -474,7 +497,7 @@ CREATE TABLE `tbl_documentos_tipos` (
 
 LOCK TABLES `tbl_documentos_tipos` WRITE;
 /*!40000 ALTER TABLE `tbl_documentos_tipos` DISABLE KEYS */;
-INSERT INTO `tbl_documentos_tipos` VALUES (1,'Factura','Documento de factura',1),(2,'Contrato','Documento de contrato',1),(3,'Comprobante de pago','Documento que comprueba un pago',1),(4,'Identificación oficial','Documento de identificación oficial',1);
+INSERT INTO `tbl_documentos_tipos` VALUES (1,'Factura','Documento de factura',1),(2,'Contrato','Documento de contrato',1),(3,'Comprobante de pago','Documento que comprueba un pago',1),(4,'Identificación oficial','Documento de identificación oficial',1),(5,'Constancia Fiscal','Constancia fiscal actualizada para efectos de factucración',1);
 /*!40000 ALTER TABLE `tbl_documentos_tipos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -539,31 +562,6 @@ CREATE TABLE `tbl_envios` (
 LOCK TABLES `tbl_envios` WRITE;
 /*!40000 ALTER TABLE `tbl_envios` DISABLE KEYS */;
 /*!40000 ALTER TABLE `tbl_envios` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `tbl_estados`
---
-
-DROP TABLE IF EXISTS `tbl_estados`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tbl_estados` (
-  `id_estado` int NOT NULL AUTO_INCREMENT,
-  `chr_nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `chr_clave` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `tbl_estados`
---
-
-LOCK TABLES `tbl_estados` WRITE;
-/*!40000 ALTER TABLE `tbl_estados` DISABLE KEYS */;
-INSERT INTO `tbl_estados` VALUES (1,'Aguascalientes','AGS'),(2,'Baja California','BC'),(3,'Baja California Sur','BCS'),(4,'Campeche','CAMP'),(5,'Chiapas','CHIS'),(6,'Chihuahua','CHIH'),(7,'Ciudad de México','CDMX'),(8,'Coahuila','COAH'),(9,'Colima','COL'),(10,'Durango','DGO'),(11,'Guanajuato','GTO'),(12,'Guerrero','GRO'),(13,'Hidalgo','HGO'),(14,'Jalisco','JAL'),(15,'México','MEX'),(16,'Michoacán','MICH'),(17,'Morelos','MOR'),(18,'Nayarit','NAY'),(19,'Nuevo León','NL'),(20,'Oaxaca','OAX'),(21,'Puebla','PUE'),(22,'Querétaro','QRO'),(23,'Quintana Roo','QROO'),(24,'San Luis Potosí','SLP'),(25,'Sinaloa','SIN'),(26,'Sonora','SON'),(27,'Tabasco','TAB'),(28,'Tamaulipas','TAMPS'),(29,'Tlaxcala','TLAX'),(30,'Veracruz','VER'),(31,'Yucatán','YUC'),(32,'Zacatecas','ZAC');
-/*!40000 ALTER TABLE `tbl_estados` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -921,9 +919,7 @@ CREATE TABLE `tbl_ordenes` (
   KEY `fk_tbl_ordenes_clientes_empresa_idx` (`id_cliente_empresa`),
   KEY `fk_tbl_ordenes_envios_idx` (`id_envio`),
   KEY `fk_tbl_ordenes_estados_ordenes_idx` (`id_estado_orden`),
-  KEY `fk_tbl_ordenes_direcciones_idx` (`id_direccion_envio`),
   CONSTRAINT `fk_tbl_ordenes_clientes_empresa` FOREIGN KEY (`id_cliente_empresa`) REFERENCES `tbl_clientes` (`id_cliente`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_tbl_ordenes_direcciones` FOREIGN KEY (`id_direccion_envio`) REFERENCES `tbl_direcciones` (`id_direccion`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_ordenes_empleados_cliente` FOREIGN KEY (`id_empleado_cliente`) REFERENCES `tbl_empleados_cliente` (`id_empleado_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_ordenes_envios` FOREIGN KEY (`id_envio`) REFERENCES `tbl_envios` (`id_envio`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_ordenes_estados_ordenes` FOREIGN KEY (`id_estado_orden`) REFERENCES `tbl_estados_ordenes` (`id_estado_orden`) ON DELETE RESTRICT ON UPDATE CASCADE
@@ -1034,33 +1030,6 @@ CREATE TABLE `tbl_pagos_a_plazos` (
 LOCK TABLES `tbl_pagos_a_plazos` WRITE;
 /*!40000 ALTER TABLE `tbl_pagos_a_plazos` DISABLE KEYS */;
 /*!40000 ALTER TABLE `tbl_pagos_a_plazos` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `tbl_postal_colonias`
---
-
-DROP TABLE IF EXISTS `tbl_postal_colonias`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tbl_postal_colonias` (
-  `id_cp` int NOT NULL AUTO_INCREMENT,
-  `id_estado` int NOT NULL,
-  `ciudad` varchar(100) DEFAULT NULL,
-  `colonia` varchar(100) DEFAULT NULL,
-  `codigo_postal` varchar(5) DEFAULT NULL,
-  PRIMARY KEY (`id_cp`)
-) ENGINE=InnoDB AUTO_INCREMENT=139 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `tbl_postal_colonias`
---
-
-LOCK TABLES `tbl_postal_colonias` WRITE;
-/*!40000 ALTER TABLE `tbl_postal_colonias` DISABLE KEYS */;
-INSERT INTO `tbl_postal_colonias` VALUES (1,1,'Aguascalientes','Centro','20000'),(2,1,'Aguascalientes','San Marcos','20010'),(3,1,'Jesús María','Centro','20900'),(4,1,'Jesús María','Rincón del Molino','20905'),(5,2,'Mexicali','Centro','21000'),(6,2,'Mexicali','Nueva','21010'),(7,2,'Tijuana','Centro','22000'),(8,2,'Tijuana','Playas','22500'),(9,2,'Ensenada','Centro','22800'),(10,2,'Ensenada','Buenavista','22810'),(11,2,'Tecate','Centro','21400'),(12,3,'La Paz','Centro','23000'),(13,3,'La Paz','El Esterito','23010'),(14,3,'Ciudad Constitución','Centro','23700'),(15,4,'Campeche','Centro','24000'),(16,4,'Campeche','San Román','24010'),(17,4,'Ciudad del Carmen','Centro','24100'),(18,4,'Ciudad del Carmen','Playa Norte','24110'),(19,5,'Saltillo','Centro','25000'),(20,5,'Saltillo','Mirasierra','25010'),(21,5,'Torreón','Centro','27000'),(22,5,'Torreón','La Rosita','27010'),(23,5,'Monclova','Centro','25700'),(24,5,'Piedras Negras','Centro','26000'),(25,6,'Colima','Centro','28000'),(26,6,'Colima','Jardines de las Lomas','28010'),(27,6,'Tecomán','Centro','28100'),(28,7,'Tuxtla Gutiérrez','Centro','29000'),(29,7,'Tuxtla Gutiérrez','Las Palmas','29010'),(30,7,'Tapachula','Centro','30700'),(31,7,'San Cristóbal de las Casas','Centro','29200'),(32,7,'Comitán de Domínguez','Centro','30000'),(33,8,'Chihuahua','Centro','31000'),(34,8,'Chihuahua','Campo Bello','31010'),(35,8,'Ciudad Juárez','Centro','32000'),(36,8,'Ciudad Juárez','Pronaf','32010'),(37,8,'Delicias','Centro','33000'),(38,8,'Cuauhtémoc','Centro','31500'),(39,7,'Ciudad de México','Centro Histórico','06000'),(40,7,'Ciudad de México','Roma Norte','06700'),(41,7,'Ciudad de México','Polanco','11550'),(42,10,'Durango','Centro','34000'),(43,10,'Durango','Victoria de Durango','34010'),(44,10,'Gómez Palacio','Centro','35000'),(45,10,'Ciudad Lerdo','Centro','35150'),(46,11,'León','Centro','37000'),(47,11,'León','La Martinica','37010'),(48,11,'Irapuato','Centro','36500'),(49,11,'Celaya','Centro','38000'),(50,11,'Salamanca','Centro','36700'),(51,11,'Guanajuato','Centro','36000'),(52,11,'San Miguel de Allende','Centro','37700'),(53,12,'Acapulco de Juárez','Centro','39300'),(54,12,'Acapulco de Juárez','Diamante','39670'),(55,12,'Chilpancingo de los Bravo','Centro','39000'),(56,12,'Iguala de la Independencia','Centro','40000'),(57,13,'Pachuca de Soto','Centro','42000'),(58,13,'Pachuca de Soto','Plaza Juárez','42010'),(59,13,'Tulancingo de Bravo','Centro','43600'),(60,14,'Guadalajara','Centro','44100'),(61,14,'Guadalajara','Americana','44150'),(62,14,'Zapopan','Centro','45000'),(63,14,'Tlaquepaque','Centro','45500'),(64,14,'Tlajomulco de Zúñiga','Centro','45640'),(65,14,'Puerto Vallarta','Centro','48300'),(66,14,'Ciudad Guzmán','Centro','49000'),(67,15,'Ecatepec de Morelos','Centro','55000'),(68,15,'Nezahualcóyotl','Centro','57000'),(69,15,'Naucalpan de Juárez','Centro','53000'),(70,15,'Tlalnepantla de Baz','Centro','54000'),(71,15,'Chimalhuacán','Centro','56300'),(72,15,'Toluca','Centro','50000'),(73,15,'Ciudad López Mateos','Centro','52900'),(74,15,'Coacalco de Berriozábal','Centro','55700'),(75,15,'Cuautitlán Izcalli','Centro','54700'),(76,15,'Ixtapaluca','Centro','56500'),(77,15,'Nicolás Romero','Centro','54400'),(78,15,'Tecámac','Centro','55740'),(79,15,'Valle de Chalco Solidaridad','Centro','56600'),(80,16,'Morelia','Centro','58000'),(81,16,'Morelia','Vasco de Quiroga','58020'),(82,16,'Uruapan','Centro','60000'),(83,16,'Zamora de Hidalgo','Centro','59600'),(84,16,'Lázaro Cárdenas','Centro','60950'),(85,17,'Cuernavaca','Centro','62000'),(86,17,'Cuernavaca','Lomas de la Selva','62020'),(87,17,'Cuautla','Centro','62740'),(88,18,'Tepic','Centro','63000'),(89,19,'Monterrey','Centro','64000'),(90,19,'Monterrey','San Pedro','66220'),(91,19,'Guadalupe','Centro','67100'),(92,19,'San Nicolás de los Garza','Centro','66400'),(93,19,'Apodaca','Centro','66600'),(94,19,'Escobedo','Centro','66050'),(95,19,'Santa Catarina','Centro','66350'),(96,19,'Juárez','Centro','67250'),(97,20,'Oaxaca de Juárez','Centro','68000'),(98,20,'Oaxaca de Juárez','Reforma','68010'),(99,20,'San Juan Bautista Tuxtepec','Centro','68300'),(100,21,'Puebla','Centro','72000'),(101,21,'Puebla','Angelópolis','72190'),(102,21,'Tehuacán','Centro','75700'),(103,21,'San Martín Texmelucan','Centro','74000'),(104,22,'Santiago de Querétaro','Centro','76000'),(105,22,'Santiago de Querétaro','Juriquilla','76230'),(106,22,'San Juan del Río','Centro','76800'),(107,23,'Cancún','Centro','77500'),(108,23,'Cancún','Zona Hotelera','77500'),(109,23,'Chetumal','Centro','77000'),(110,23,'Playa del Carmen','Centro','77710'),(111,24,'San Luis Potosí','Centro','78000'),(112,24,'San Luis Potosí','Tangamanga','78250'),(113,24,'Soledad de Graciano Sánchez','Centro','78430'),(114,25,'Culiacán','Centro','80000'),(115,25,'Culiacán','Las Quintas','80010'),(116,25,'Mazatlán','Centro','82000'),(117,25,'Los Mochis','Centro','81200'),(118,26,'Hermosillo','Centro','83000'),(119,26,'Hermosillo','Pitic','83100'),(120,26,'Ciudad Obregón','Centro','85000'),(121,26,'Nogales','Centro','84000'),(122,27,'Villahermosa','Centro','86000'),(123,27,'Villahermosa','Gaviotas','86010'),(124,28,'Ciudad Victoria','Centro','87000'),(125,28,'Reynosa','Centro','88500'),(126,28,'Matamoros','Centro','87300'),(127,28,'Nuevo Laredo','Centro','88000'),(128,29,'Tlaxcala','Centro','90000'),(129,30,'Veracruz','Centro','91700'),(130,30,'Xalapa','Centro','91000'),(131,30,'Coatzacoalcos','Centro','96500'),(132,30,'Poza Rica de Hidalgo','Centro','93300'),(133,31,'Mérida','Centro','97000'),(134,31,'Mérida','Montejo','97100'),(135,31,'Ciudad Caucel','Centro','97314'),(136,31,'Kanasín','Centro','97370'),(137,32,'Zacatecas','Centro','98000'),(138,32,'Guadalupe','Centro','98600');
-/*!40000 ALTER TABLE `tbl_postal_colonias` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1381,9 +1350,7 @@ CREATE TABLE `tbl_proveedores` (
   `chr_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `id_direccion` int DEFAULT NULL,
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id_proveedor`),
-  KEY `fk_tbl_proveedores_direcciones_idx` (`id_direccion`),
-  CONSTRAINT `fk_tbl_proveedores_direcciones` FOREIGN KEY (`id_direccion`) REFERENCES `tbl_direcciones` (`id_direccion`) ON DELETE SET NULL ON UPDATE CASCADE
+  PRIMARY KEY (`id_proveedor`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1471,28 +1438,30 @@ LOCK TABLES `tbl_status` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `tbl_tipo_asentamiento`
+-- Table structure for table `tbl_telefonos`
 --
 
-DROP TABLE IF EXISTS `tbl_tipo_asentamiento`;
+DROP TABLE IF EXISTS `tbl_telefonos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tbl_tipo_asentamiento` (
-  `id_tipo_asentamiento` bigint NOT NULL,
-  `chr_nombre_tipo_asentamiento` varchar(145) DEFAULT NULL,
-  `bit_activo` tinyint(1) DEFAULT '1',
-  PRIMARY KEY (`id_tipo_asentamiento`)
+CREATE TABLE `tbl_telefonos` (
+  `id_telefono` int NOT NULL,
+  `chr_lada` varchar(6) DEFAULT NULL,
+  `chr_telefono` varchar(15) DEFAULT NULL,
+  `int_tipo_telefono` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id_telefono`),
+  KEY `index2` (`int_tipo_telefono`),
+  CONSTRAINT `fk_tbl_telefonos_1` FOREIGN KEY (`int_tipo_telefono`) REFERENCES `tbl_tipo_telefono` (`id_tipo_telefono`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `tbl_tipo_asentamiento`
+-- Dumping data for table `tbl_telefonos`
 --
 
-LOCK TABLES `tbl_tipo_asentamiento` WRITE;
-/*!40000 ALTER TABLE `tbl_tipo_asentamiento` DISABLE KEYS */;
-INSERT INTO `tbl_tipo_asentamiento` VALUES (137577476,'Puerto',1),(154813110,'Finca',1),(180139725,'Poblado comunal',1),(222628478,'Villa',1),(300255793,'Fraccionamiento',1),(304441065,'Zona industrial',1),(493664130,'Rancho',1),(495348822,'Zona militar',1),(1121420215,'Exhacienda',1),(1138194105,'Zona comercial',1),(1192843352,'Ejido',1),(1984535195,'Barrio',1),(2114555199,'Hacienda',1),(2177855106,'Equipamiento',1),(2435439259,'Colonia',1),(2693450695,'Zona naval',1),(2831070237,'Campamento',1),(3051946301,'Gran usuario',1),(3136179745,'Ampliación',1),(3169090338,'Ingenio',1),(3208077123,'Conjunto habitacional',1),(3240393861,'Granja',1),(3293234354,'Residencial',1),(3373594435,'Unidad habitacional',1),(3449217817,'Estación',1),(3518723149,'Aeropuerto',1),(3632619183,'Pueblo',1),(3634999117,'Paraje',1),(3766660359,'Club de golf',1),(3907319221,'Congregación',1),(4084468280,'Ranchería',1),(4085548713,'Parque industrial',1),(4133730821,'Zona federal',1),(4138304309,'Condominio',1);
-/*!40000 ALTER TABLE `tbl_tipo_asentamiento` ENABLE KEYS */;
+LOCK TABLES `tbl_telefonos` WRITE;
+/*!40000 ALTER TABLE `tbl_telefonos` DISABLE KEYS */;
+/*!40000 ALTER TABLE `tbl_telefonos` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1531,7 +1500,7 @@ CREATE TABLE `tbl_tipo_telefono` (
   `id_tipo_telefono` int NOT NULL AUTO_INCREMENT,
   `chr_tipo_telefono` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id_tipo_telefono`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1540,7 +1509,7 @@ CREATE TABLE `tbl_tipo_telefono` (
 
 LOCK TABLES `tbl_tipo_telefono` WRITE;
 /*!40000 ALTER TABLE `tbl_tipo_telefono` DISABLE KEYS */;
-INSERT INTO `tbl_tipo_telefono` VALUES (1,'celular personal'),(2,'oficina fijo'),(3,'contacto de emergencia');
+INSERT INTO `tbl_tipo_telefono` VALUES (1,'celular personal'),(2,'oficina fijo'),(3,'contacto de emergencia'),(4,'asistente');
 /*!40000 ALTER TABLE `tbl_tipo_telefono` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1565,7 +1534,7 @@ CREATE TABLE `tbl_tipos_direcciones` (
 
 LOCK TABLES `tbl_tipos_direcciones` WRITE;
 /*!40000 ALTER TABLE `tbl_tipos_direcciones` DISABLE KEYS */;
-INSERT INTO `tbl_tipos_direcciones` VALUES (1,'Headquarters'),(2,'Envios'),(3,'Oficina alternativa'),(4,'Bodega/Almacen'),(5,'Correo Postal');
+INSERT INTO `tbl_tipos_direcciones` VALUES (1,'Dirección Fiscal'),(2,'Envios'),(3,'Oficina alternativa'),(4,'Bodega/Almacen'),(5,'Correo Postal');
 /*!40000 ALTER TABLE `tbl_tipos_direcciones` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1718,4 +1687,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-16  3:55:19
+-- Dump completed on 2025-04-25  1:17:16
