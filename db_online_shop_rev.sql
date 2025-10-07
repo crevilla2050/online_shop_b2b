@@ -16,30 +16,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `id_direcciones_clientes`
---
-
-DROP TABLE IF EXISTS `id_direcciones_clientes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `id_direcciones_clientes` (
-  `id_direcciones_clientes` int NOT NULL AUTO_INCREMENT,
-  `id_cliente` int NOT NULL,
-  `id_direccion` int NOT NULL,
-  PRIMARY KEY (`id_direcciones_clientes`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `id_direcciones_clientes`
---
-
-LOCK TABLES `id_direcciones_clientes` WRITE;
-/*!40000 ALTER TABLE `id_direcciones_clientes` DISABLE KEYS */;
-/*!40000 ALTER TABLE `id_direcciones_clientes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `tbl_almacenes`
 --
 
@@ -115,7 +91,7 @@ CREATE TABLE `tbl_clientes` (
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_cliente`),
   UNIQUE KEY `chr_email_UNIQUE` (`chr_email`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -124,7 +100,7 @@ CREATE TABLE `tbl_clientes` (
 
 LOCK TABLES `tbl_clientes` WRITE;
 /*!40000 ALTER TABLE `tbl_clientes` DISABLE KEYS */;
-INSERT INTO `tbl_clientes` VALUES (1,'TestUser','TestLast','test@example.com','123456789','2025-04-14 04:44:14',1,'Mi empresita','XAXX010101ABC',1);
+INSERT INTO `tbl_clientes` VALUES (1,'TestUser','TestLast','test@example.com','123456789','2025-04-14 04:44:14',1,'Mi empresita','XAXX010101ABC',1),(2,'Juanito','Juan','mail@mail.com','9515555555','2025-05-10 00:55:38',0,NULL,NULL,1);
 /*!40000 ALTER TABLE `tbl_clientes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -145,7 +121,7 @@ CREATE TABLE `tbl_clientes_documentos` (
   KEY `fk_tbl_clientes_documentos_documentos_idx` (`id_documento`),
   CONSTRAINT `fk_tbl_clientes_documentos_clientes` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_clientes_documentos_documentos` FOREIGN KEY (`id_documento`) REFERENCES `tbl_documentos` (`id_documento`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -154,7 +130,7 @@ CREATE TABLE `tbl_clientes_documentos` (
 
 LOCK TABLES `tbl_clientes_documentos` WRITE;
 /*!40000 ALTER TABLE `tbl_clientes_documentos` DISABLE KEYS */;
-INSERT INTO `tbl_clientes_documentos` VALUES (1,1,1,'2025-04-16 09:10:07');
+INSERT INTO `tbl_clientes_documentos` VALUES (5,1,5,'2025-04-26 03:09:10'),(6,1,6,'2025-04-26 03:20:34'),(7,2,8,'2025-05-10 01:46:49'),(8,2,9,'2025-05-10 01:47:31'),(9,2,11,'2025-05-10 01:53:12');
 /*!40000 ALTER TABLE `tbl_clientes_documentos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -436,7 +412,7 @@ CREATE TABLE `tbl_direcciones` (
 
 LOCK TABLES `tbl_direcciones` WRITE;
 /*!40000 ALTER TABLE `tbl_direcciones` DISABLE KEYS */;
-INSERT INTO `tbl_direcciones` VALUES (1,1,'Calle Principal dir 2 100 Inter. 1',2873680545,4,433601300,2435439259,0,1),(2,1,'dir 2 calle 3 numero 4',2873680545,1,508625272,2435439259,1,1);
+INSERT INTO `tbl_direcciones` VALUES (1,1,'Calle Principal dir 2 100 Inter. 1',2873680545,5,1741005805,2435439259,0,1),(2,1,'dir 2 calle 3 numero 4',2873680545,1,508625272,2435439259,1,1);
 /*!40000 ALTER TABLE `tbl_direcciones` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -462,7 +438,7 @@ CREATE TABLE `tbl_documentos` (
   KEY `fk_tbl_documentos_usuarios_idx` (`id_usuario_subida`),
   CONSTRAINT `fk_tbl_documentos_documentos_tipos` FOREIGN KEY (`id_documento_tipo`) REFERENCES `tbl_documentos_tipos` (`id_documento_tipo`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_documentos_usuarios` FOREIGN KEY (`id_usuario_subida`) REFERENCES `tbl_usuarios` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -471,7 +447,7 @@ CREATE TABLE `tbl_documentos` (
 
 LOCK TABLES `tbl_documentos` WRITE;
 /*!40000 ALTER TABLE `tbl_documentos` DISABLE KEYS */;
-INSERT INTO `tbl_documentos` VALUES (1,3,'ab91eef95a4b974f3dcb32c497802f08.jpg','uploads/2025/04/16/cef134f3006772dc4853df87c13216ccfe8c979150effad3e143476dda4105cd','jpg','2025-04-16 09:10:07',1,'tuui pwwtuorewt uowri oru twei',1);
+INSERT INTO `tbl_documentos` VALUES (5,1,'eryte.xls','uploads/2025/04/26/doc_680c4e56bb4d16.45568555.xls','application/vnd.ms-excel','2025-04-26 03:09:10',1,'jfdasi fads fdasufasydoaiuys oids dfase we sd',0),(6,2,'ab91eef95a4b974f3dcb32c497802f08.jpg','uploads/2025/04/26/doc_680c5102df29d4.15908810.jpg','image/jpeg','2025-04-26 03:20:34',1,'uuuuuuuuuuuuuu',1),(8,3,'8a63c890bc85208c064b0138b7692657','uploads/2025/05/10/8a63c890bc85208c064b0138b7692657.jpg','jpg','2025-05-10 01:46:49',1,'fasdp dpasdfupasiu dfpasi',1),(9,3,'8e95302859e8db889c0dd09d6d0099eb','uploads/2025/05/10/8e95302859e8db889c0dd09d6d0099eb.jpg','jpg','2025-05-10 01:47:31',1,'dsaf addsfasdfsdfasd fasdf asd',1),(11,1,'crm_sp.jpg','uploads/2025/05/10/doc_681eb18812b602.09736091.jpg','image/jpeg','2025-05-10 01:53:12',1,'rtw rewrew wrt rewe ew terw w t',1);
 /*!40000 ALTER TABLE `tbl_documentos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -511,16 +487,14 @@ DROP TABLE IF EXISTS `tbl_empleados_cliente`;
 CREATE TABLE `tbl_empleados_cliente` (
   `id_empleado_cliente` int NOT NULL AUTO_INCREMENT,
   `id_cliente` int NOT NULL,
-  `chr_nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `chr_apellido` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `chr_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `chr_telefono` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `id_empleado` int NOT NULL,
   `fl_limite_credito_individual` decimal(10,2) NOT NULL DEFAULT '0.00',
   `fl_credito_disponible` decimal(10,2) NOT NULL DEFAULT '0.00',
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_empleado_cliente`),
-  UNIQUE KEY `chr_email_UNIQUE` (`chr_email`),
   KEY `fk_tbl_empleados_cliente_clientes_idx` (`id_cliente`),
+  KEY `index3` (`id_empleado`),
+  CONSTRAINT `fk_tbl_empleados_cliente_1` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`),
   CONSTRAINT `fk_tbl_empleados_cliente_clientes` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -676,11 +650,14 @@ DROP TABLE IF EXISTS `tbl_imagenes`;
 CREATE TABLE `tbl_imagenes` (
   `id_imagen` int NOT NULL AUTO_INCREMENT,
   `chr_nombre` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id_tipo_imagen` int NOT NULL,
   `chr_ruta` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `chr_alt_text` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id_imagen`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id_imagen`),
+  KEY `index2` (`id_tipo_imagen`),
+  CONSTRAINT `fk_tbl_imagenes_1` FOREIGN KEY (`id_tipo_imagen`) REFERENCES `tbl_tipos_imagenes` (`id_tipo_imagen`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -689,6 +666,7 @@ CREATE TABLE `tbl_imagenes` (
 
 LOCK TABLES `tbl_imagenes` WRITE;
 /*!40000 ALTER TABLE `tbl_imagenes` DISABLE KEYS */;
+INSERT INTO `tbl_imagenes` VALUES (1,'crm_sp.jpg',2,'uploads/img_680b52585c1206.10548783.jpg','Logotipo',1),(2,'ab91eef95a4b974f3dcb32c497802f08.jpg',4,'uploads/2025/04/25/img_680b5430905f85.23457000.jpg','gatito',1);
 /*!40000 ALTER TABLE `tbl_imagenes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1054,7 +1032,7 @@ CREATE TABLE `tbl_precios_productos` (
   CONSTRAINT `fk_tbl_precios_productos_impuestos` FOREIGN KEY (`id_impuesto`) REFERENCES `tbl_impuestos` (`id_impuesto`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_precios_productos_productos` FOREIGN KEY (`id_producto`) REFERENCES `tbl_productos` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_precios_productos_proveedor_producto` FOREIGN KEY (`id_proveedor_producto`) REFERENCES `tbl_proveedor_producto` (`id_proveedor_producto`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10326 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17667 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1183,7 +1161,7 @@ CREATE TABLE `tbl_productos` (
   CONSTRAINT `fk_tbl_productos_1` FOREIGN KEY (`id_grupo_def`) REFERENCES `tbl_grupos_def` (`id_grupos_def`),
   CONSTRAINT `fk_tbl_productos_unidades_medida` FOREIGN KEY (`id_unidad_medida`) REFERENCES `tbl_unidades_medida` (`id_unidad_medida`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `tbl_productos_ibfk_1` FOREIGN KEY (`id_categoria`) REFERENCES `tbl_categorias` (`id_categoria`)
-) ENGINE=InnoDB AUTO_INCREMENT=10662 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18003 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1210,7 +1188,7 @@ CREATE TABLE `tbl_productos_especificaciones` (
   PRIMARY KEY (`id_especificacion`),
   KEY `fk_productos_especificaciones_productos_idx` (`id_producto`),
   CONSTRAINT `fk_productos_especificaciones_productos` FOREIGN KEY (`id_producto`) REFERENCES `tbl_productos` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=26029 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=43830 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1239,7 +1217,7 @@ CREATE TABLE `tbl_productos_identificadores` (
   KEY `fk_tbl_productos_identificadores_identificadores_tipos_idx` (`id_identificador_tipo`),
   CONSTRAINT `fk_tbl_productos_identificadores_identificadores_tipos` FOREIGN KEY (`id_identificador_tipo`) REFERENCES `tbl_identificadores_tipos` (`id_identificador_tipo`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_productos_identificadores_productos` FOREIGN KEY (`id_producto`) REFERENCES `tbl_productos` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=30937 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=53408 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1293,7 +1271,7 @@ CREATE TABLE `tbl_productos_promociones` (
   PRIMARY KEY (`id_promocion`),
   KEY `fk_productos_promociones_productos_idx` (`id_producto`),
   CONSTRAINT `fk_productos_promociones_productos` FOREIGN KEY (`id_producto`) REFERENCES `tbl_productos` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2085 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2922 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1389,6 +1367,36 @@ LOCK TABLES `tbl_puestos` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `tbl_rel_imagenes_clientes`
+--
+
+DROP TABLE IF EXISTS `tbl_rel_imagenes_clientes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tbl_rel_imagenes_clientes` (
+  `id_rel_img_cliente` int NOT NULL AUTO_INCREMENT,
+  `id_cliente` int NOT NULL,
+  `id_imagen` int NOT NULL,
+  PRIMARY KEY (`id_rel_img_cliente`),
+  UNIQUE KEY `id_rel_img_cliente_UNIQUE` (`id_rel_img_cliente`),
+  KEY `9678iuoyubkti` (`id_cliente`),
+  KEY `index4` (`id_imagen`),
+  CONSTRAINT `fk_tbl_rel_imagenes_clientes_1` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`),
+  CONSTRAINT `fk_tbl_rel_imagenes_clientes_2` FOREIGN KEY (`id_imagen`) REFERENCES `tbl_imagenes` (`id_imagen`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tbl_rel_imagenes_clientes`
+--
+
+LOCK TABLES `tbl_rel_imagenes_clientes` WRITE;
+/*!40000 ALTER TABLE `tbl_rel_imagenes_clientes` DISABLE KEYS */;
+INSERT INTO `tbl_rel_imagenes_clientes` VALUES (1,1,1);
+/*!40000 ALTER TABLE `tbl_rel_imagenes_clientes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `tbl_reportes`
 --
 
@@ -1412,6 +1420,31 @@ CREATE TABLE `tbl_reportes` (
 LOCK TABLES `tbl_reportes` WRITE;
 /*!40000 ALTER TABLE `tbl_reportes` DISABLE KEYS */;
 /*!40000 ALTER TABLE `tbl_reportes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tbl_roles_usuario`
+--
+
+DROP TABLE IF EXISTS `tbl_roles_usuario`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tbl_roles_usuario` (
+  `id_rol_usuario` int NOT NULL AUTO_INCREMENT,
+  `chr_rol_usuario` varchar(45) DEFAULT NULL,
+  `int_nivel_usuario` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id_rol_usuario`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tbl_roles_usuario`
+--
+
+LOCK TABLES `tbl_roles_usuario` WRITE;
+/*!40000 ALTER TABLE `tbl_roles_usuario` DISABLE KEYS */;
+INSERT INTO `tbl_roles_usuario` VALUES (1,'Superadmin',3),(2,'Admin',2),(3,'Colaborador',1);
+/*!40000 ALTER TABLE `tbl_roles_usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1536,6 +1569,32 @@ LOCK TABLES `tbl_tipos_direcciones` WRITE;
 /*!40000 ALTER TABLE `tbl_tipos_direcciones` DISABLE KEYS */;
 INSERT INTO `tbl_tipos_direcciones` VALUES (1,'Dirección Fiscal'),(2,'Envios'),(3,'Oficina alternativa'),(4,'Bodega/Almacen'),(5,'Correo Postal');
 /*!40000 ALTER TABLE `tbl_tipos_direcciones` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tbl_tipos_imagenes`
+--
+
+DROP TABLE IF EXISTS `tbl_tipos_imagenes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tbl_tipos_imagenes` (
+  `id_tipo_imagen` int NOT NULL AUTO_INCREMENT,
+  `chr_tipo_imagen` varchar(45) DEFAULT NULL,
+  `bit_activo` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id_tipo_imagen`),
+  UNIQUE KEY `id_tipo_imagen_UNIQUE` (`id_tipo_imagen`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tbl_tipos_imagenes`
+--
+
+LOCK TABLES `tbl_tipos_imagenes` WRITE;
+/*!40000 ALTER TABLE `tbl_tipos_imagenes` DISABLE KEYS */;
+INSERT INTO `tbl_tipos_imagenes` VALUES (2,'Logotipo',1),(3,'Banner',1),(4,'Web',1),(5,'Otro',1);
+/*!40000 ALTER TABLE `tbl_tipos_imagenes` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1664,8 +1723,10 @@ CREATE TABLE `tbl_usuarios` (
   `id_cliente` int NOT NULL,
   PRIMARY KEY (`id_usuario`),
   KEY `index2` (`id_cliente`),
-  CONSTRAINT `fk_tbl_usuarios_1` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `index3` (`int_rol`),
+  CONSTRAINT `fk_tbl_usuarios_1` FOREIGN KEY (`id_cliente`) REFERENCES `tbl_clientes` (`id_cliente`),
+  CONSTRAINT `fk_tbl_usuarios_2` FOREIGN KEY (`int_rol`) REFERENCES `tbl_roles_usuario` (`id_rol_usuario`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1674,7 +1735,7 @@ CREATE TABLE `tbl_usuarios` (
 
 LOCK TABLES `tbl_usuarios` WRITE;
 /*!40000 ALTER TABLE `tbl_usuarios` DISABLE KEYS */;
-INSERT INTO `tbl_usuarios` VALUES (1,'testuser','e5d21750f53a936ad6d6a4ac58ebd173238d29c06e82edc64b265deef5fb0de7','375d194d81f6f761e03aed35441abc70d3ec5c446bc84d3fa04b302febfd1c29',1,1,NULL,1);
+INSERT INTO `tbl_usuarios` VALUES (1,'testuser','e5d21750f53a936ad6d6a4ac58ebd173238d29c06e82edc64b265deef5fb0de7','375d194d81f6f761e03aed35441abc70d3ec5c446bc84d3fa04b302febfd1c29',1,1,2,1),(5,'juanito','973a78d2083e150490cf7c3b586d25490fe5bd2fbda171a97c531104e8950cb5','86b2826b52df12d81e9572d5efab03219afd489adb4b0c4febeb6629eb5de54d',1,1,NULL,2);
 /*!40000 ALTER TABLE `tbl_usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1687,4 +1748,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-25  1:17:16
+-- Dump completed on 2025-05-09 20:26:27
