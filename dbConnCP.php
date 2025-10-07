@@ -2,8 +2,8 @@
 // Configuración de la conexión a la base de datos
 $host = 'localhost';
 $dbname = 'db_codigos_postales';
-$username = 'root';
-$password = 't4a2x0a6';
+$username = 'db_user';
+$password = 'yourpasshere';
 
 try {
     // Crear conexión PDO
