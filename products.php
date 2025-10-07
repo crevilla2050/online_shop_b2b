@@ -1,6 +1,38 @@
 <?php
+session_start();
+
+if (!isset($_SESSION['usuario'])) {
+    $_SESSION['usuario'] = [];
+}
+
+if (!isset($_SESSION['usuario']['id_cliente'])) {
+    // Try to get client id from GET parameter 'id'
+    if (isset($_GET['id']) && is_numeric($_GET['id'])) {
+        $_SESSION['usuario']['id_cliente'] = (int)$_GET['id'];
+    }
+}
+
 // Incluir conexión a la base de datos
 require_once 'dbConn.php';
+
+// Si el tipo de usuario no está seteado en la sesión, obtenerlo de la base de datos
+if (!isset($_SESSION['user']['tipo'])) {
+    // Asumir que $_SESSION['user']['id'] contiene el ID del usuario
+    if (isset($_SESSION['user']['id'])) {
+        $stmtUser = $pdo->prepare("SELECT r.int_nivel_usuario AS tipo FROM tbl_usuarios u LEFT JOIN tbl_roles_usuario r ON u.int_rol = r.id_rol_usuario WHERE u.id_usuario = ?");
+        $stmtUser->execute([$_SESSION['user']['id']]);
+        $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        if ($user && isset($user['tipo'])) {
+            $_SESSION['user']['tipo'] = $user['tipo'];
+        } else {
+            // Usuario no encontrado o sin rol, no cerrar sesión ni redirigir, asignar rol 0 para acceso
+            $_SESSION['user']['tipo'] = 0;
+        }
+    } else {
+        // No hay ID de usuario en sesión, no cerrar sesión ni redirigir, asignar rol 0 para acceso
+        $_SESSION['user']['tipo'] = 0;
+    }
+}
 
 // Obtener todas las categorías activas para el desplegable
 $categoryStmt = $pdo->prepare("SELECT id_categoria, chr_nombre FROM tbl_categorias WHERE bit_activo = 1 ORDER BY chr_nombre");
@@ -14,11 +46,21 @@ $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
 // Construir consulta base para productos con joins a categorías e imágenes
 $query = "
     SELECT p.id_producto, p.chr_nombre_prod, p.chr_desc_prod, c.chr_nombre AS categoria,
-           i.chr_ruta AS imagen_ruta, i.chr_alt_text AS imagen_alt
+           i.chr_ruta AS imagen_ruta, i.chr_alt_text AS imagen_alt,
+           pp.fl_precio
     FROM tbl_productos p
     INNER JOIN tbl_categorias c ON p.id_categoria = c.id_categoria
     LEFT JOIN tbl_productos_imagenes pi ON p.id_producto = pi.id_producto
     LEFT JOIN tbl_imagenes i ON pi.id_imagen = i.id_imagen AND i.bit_activo = 1
+    LEFT JOIN (
+        SELECT id_producto, fl_precio
+        FROM tbl_precios_productos t1
+        WHERE dt_fecha_inicio = (
+            SELECT MAX(dt_fecha_inicio)
+            FROM tbl_precios_productos t2
+            WHERE t2.id_producto = t1.id_producto
+        )
+    ) pp ON p.id_producto = pp.id_producto
     WHERE p.int_activo = 1
 ";
 
@@ -62,10 +104,34 @@ function h($string) {
         .product-info { flex: 1; }
         .product-name { font-weight: bold; font-size: 1.2em; margin-bottom: 5px; }
         .product-desc { color: #555; }
+
+        /* Header styles from plaza.php */
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-left: 220px;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
     <?php include 'menu.php'; ?>
+    <?php include 'header.php'; ?>
     <div class="content-container">
         <h1>Productos</h1>
         <form method="get" action="products.php" class="mb-3 d-flex flex-wrap align-items-center gap-2">
@@ -96,7 +162,12 @@ function h($string) {
                     <div class="product-info flex-grow-1">
                         <div class="product-name fw-bold fs-5 mb-1"><?= h($product['chr_nombre_prod']) ?></div>
                         <div class="product-desc text-secondary mb-1"><?= h($product['chr_desc_prod']) ?></div>
-                        <div class="product-category fst-italic">Categoría: <?= h($product['categoria']) ?></div>
+            <div class="product-category fst-italic">Categoría: <?= h($product['categoria']) ?></div>
+            <?php if (isset($product['fl_precio'])): ?>
+                <div class="product-price fw-bold mt-1" style="color: #007bff;">
+                    Precio: <?= '$' . number_format($product['fl_precio'], 2, '.', ',') ?> MXN
+                </div>
+            <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>

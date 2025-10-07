@@ -1,7 +1,5 @@
 <?php
-$sessionPath = '/var/www/html/online_shop_b2b/sessions';
-ini_set('session.save_path', $sessionPath);
-session_start();
+include 'init_session.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user'])) {
@@ -16,6 +14,30 @@ require_once 'dbConn.php';
 $stmt = $pdo->prepare("SELECT * FROM tbl_clientes WHERE id_cliente = ?");
 $stmt->execute([$_SESSION['user']['client_id']]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Si el tipo de usuario no está seteado en la sesión, obtenerlo de la base de datos
+if (!isset($_SESSION['user']['tipo'])) {
+    // Asumir que $_SESSION['user']['id'] contiene el ID del usuario
+    if (isset($_SESSION['user']['id'])) {
+        $stmtUser = $pdo->prepare("SELECT r.int_nivel_usuario AS tipo FROM tbl_usuarios u LEFT JOIN tbl_roles_usuario r ON u.int_rol = r.id_rol_usuario WHERE u.id_usuario = ?");
+        $stmtUser->execute([$_SESSION['user']['id']]);
+        $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        if ($user && isset($user['tipo'])) {
+            $_SESSION['user']['tipo'] = $user['tipo'];
+        } else {
+            // Usuario no encontrado o sin rol, cerrar sesión y redirigir
+            session_destroy();
+            header('Location: index.php');
+            exit;
+        }
+    } else {
+        // No hay ID de usuario en sesión, cerrar sesión y redirigir
+        session_destroy();
+        header('Location: index.php');
+        exit;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,58 +46,11 @@ $client = $stmt->fetch(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bienvenido - Tienda en línea b2b Test Version</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-        .header {
-            background-color: #007bff;
-            color: white;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-        .welcome-message {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .logout-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .logout-btn:hover {
-            background-color: #c82333;
-        }
-        .client-info {
-            margin-top: 1rem;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-        }
-    </style>
+    <link href="styles/header.css" rel="stylesheet" />
 </head>
 <body>
     <?php include 'menu.php'; ?>
-    <div class="header" style="margin-left: 220px;">
-        <h1>Tienda en línea b2b Test Version</h1>
-        <a href="logout.php" class="logout-btn">Logout</a>
-    </div>
+    <?php include 'header.php'; ?>
     
     <div class="container" style="margin-left: 220px;">
         <div class="welcome-message">

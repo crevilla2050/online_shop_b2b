@@ -1,41 +1,70 @@
 <?php
+// Set custom session path that's writable by web server
+$sessionPath = '/var/www/html/online_shop_b2b/sessions';
+if (!file_exists($sessionPath)) {
+    if (!mkdir($sessionPath, 0770, true) && !is_dir($sessionPath)) {
+        error_log("Failed to create session directory: " . $sessionPath);
+    }
+}
+ini_set('session.save_path', $sessionPath);
+session_start();
+
+
+
 // Conexión a la base de datos
 require_once 'dbConn.php';
+require_once 'dbConnCP.php'; // Add connection to codigos postales DB
 
-// Solo devolver JSON si es una petición AJAX para cargar dropdowns
-if (isset($_GET['ajax']) && $_GET['ajax'] == 'dropdowns') {
-    // Obtener todos los tipos de asentamiento para dropdown
-    $tipos = $pdo->query("SELECT id_tipo_asentamiento, chr_nombre_tipo_asentamiento FROM tbl_tipo_asentamiento")->fetchAll(PDO::FETCH_ASSOC);
-    $data['tipos_asentamiento'] = $tipos;
-
-    // Obtener todos los asentamientos para dropdown
-    $asentamientos = $pdo->query("SELECT chr_nombre_asentamiento FROM tbl_asentamientos")->fetchAll(PDO::FETCH_ASSOC);
-    $data['asentamientos'] = array_column($asentamientos, 'chr_nombre_asentamiento');
-
-    echo json_encode($data);
+// Verificar si el usuario está logueado
+if (!isset($_SESSION['user']['client_id'])) {
+    echo "<h3>No tiene permiso para acceder a esta página. Por favor, inicie sesión.</h3>";
     exit;
 }
 
-// Procesar el formulario cuando se envía
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Validar y limpiar datos de entrada
-    $nombre = htmlspecialchars($_POST['nombre']);
-    $apellido = isset($_POST['apellido']) ? htmlspecialchars($_POST['apellido']) : null;
-    $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
-    $telefono = isset($_POST['telefono']) ? htmlspecialchars($_POST['telefono']) : null;
-    $tipo_cliente = isset($_POST['tipo_cliente']) ? $_POST['tipo_cliente'] : 'persona';
-    $es_empresa = ($tipo_cliente === 'empresa') ? 1 : 0;
-    $nombre_empresa = $es_empresa ? htmlspecialchars($_POST['nombre_empresa']) : null;
-    $tax_id = $es_empresa ? htmlspecialchars($_POST['tax_id']) : null;
-    $limite_credito = isset($_POST['limite_credito']) ? floatval($_POST['limite_credito']) : 0.00;
+// Obtener el nivel del usuario
+$stmt_user = $pdo->prepare("SELECT ru.int_nivel_usuario FROM tbl_usuarios u JOIN tbl_roles_usuario ru ON u.int_rol = ru.id_rol_usuario WHERE u.id_cliente = ? LIMIT 1");
+$stmt_user->execute([$_SESSION['user']['client_id']]);
+$user_role = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-    // Insertar en tbl_clientes
-    $stmt = $pdo->prepare("INSERT INTO tbl_clientes (chr_nombre, chr_apellido, chr_email, chr_telefono, bit_es_empresa, chr_nombre_empresa, chr_tax_id, fl_limite_credito_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    if ($stmt->execute([$nombre, $apellido, $email, $telefono, $es_empresa, $nombre_empresa, $tax_id, $limite_credito])) {
+// DEBUG: Print info de session y usuario
+//echo "<pre>DEBUG: \$_SESSION['user']['client_id'] = " . htmlspecialchars($_SESSION['user']['client_id'] ?? 'not set') . "</pre>";
+//echo "<pre>DEBUG: \$user_role = " . print_r($user_role, true) . "</pre>";
+
+if (!$user_role || $user_role['int_nivel_usuario'] < 2) {
+    echo "<h3>No tiene permiso para acceder a esta página.</h3>";
+    exit;
+}
+
+$tipos_asentamiento = [];
+
+    // Solo devolver JSON si es una petición AJAX para cargar dropdowns
+    if (isset($_GET['ajax']) && $_GET['ajax'] == 'dropdowns') {
+        // Obtener todos los asentamientos para dropdown
+        $asentamientos = $pdoCP->query("SELECT chr_nombre_asentamiento FROM tbl_asentamientos")->fetchAll(PDO::FETCH_ASSOC);
+        $data['asentamientos'] = array_column($asentamientos, 'chr_nombre_asentamiento');
+
+        echo json_encode($data);
+        exit;
+    }
+
+try {
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Validar y limpiar datos de entrada
+        $nombre = htmlspecialchars($_POST['nombre']);
+        $apellido = isset($_POST['apellido']) ? htmlspecialchars($_POST['apellido']) : null;
+        $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+        $telefono = isset($_POST['telefono']) ? htmlspecialchars($_POST['telefono']) : null;
+        $tipo_cliente = isset($_POST['tipo_cliente']) ? $_POST['tipo_cliente'] : 'persona';
+        $es_empresa = ($tipo_cliente === 'empresa') ? 1 : 0;
+        $nombre_empresa = $es_empresa ? htmlspecialchars($_POST['nombre_empresa']) : null;
+        $tax_id = $es_empresa ? htmlspecialchars($_POST['tax_id']) : null;
+
+        // Insertar en tbl_clientes
+$stmt = $pdo->prepare("INSERT INTO tbl_clientes (chr_nombre, chr_apellido, chr_email, chr_telefono, bit_es_empresa, chr_nombre_empresa, chr_RFC) VALUES (?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([$nombre, $apellido, $email, $telefono, $es_empresa, $nombre_empresa, $tax_id]);
         $cliente_id = $pdo->lastInsertId();
 
         // Obtener campos de dirección
-        $direccion = htmlspecialchars($_POST['direccion']);
         $calle = isset($_POST['calle']) ? htmlspecialchars($_POST['calle']) : '';
         $numero = isset($_POST['numero']) ? htmlspecialchars($_POST['numero']) : '';
         $interior = isset($_POST['interior']) ? htmlspecialchars($_POST['interior']) : '';
@@ -50,37 +79,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $row_ciudad = $stmt_ciudad->fetch(PDO::FETCH_ASSOC);
         $id_ciudad = $row_ciudad ? $row_ciudad['id_ciudad'] : null;
 
+        // Validar id_ciudad
+        if ($id_ciudad === null) {
+            throw new Exception("Ciudad no encontrada en la base de datos.");
+        }
+
         // Obtener id_tipo_direccion (assuming 'facturacion' corresponds to id 1 or get from tbl_tipos_direcciones)
         $stmt_tipo_dir = $pdo->prepare("SELECT id_tipos_direcciones FROM tbl_tipos_direcciones WHERE chr_tipo_direccion = ? LIMIT 1");
         $stmt_tipo_dir->execute([$tipo_direccion]);
         $row_tipo_dir = $stmt_tipo_dir->fetch(PDO::FETCH_ASSOC);
         $id_tipo_direccion = $row_tipo_dir ? $row_tipo_dir['id_tipos_direcciones'] : 1;
 
-        // Obtener id_tipo_asentamiento desde el nombre enviado en form
-        $tipo_asentamiento_nombre = isset($_POST['tipo_asentamiento']) ? $_POST['tipo_asentamiento'] : null;
-        $stmt_tipo_asent = $pdo->prepare("SELECT id_tipo_asentamiento FROM tbl_tipo_asentamiento WHERE chr_nombre_tipo_asentamiento = ? LIMIT 1");
-        $stmt_tipo_asent->execute([$tipo_asentamiento_nombre]);
-        $row_tipo_asent = $stmt_tipo_asent->fetch(PDO::FETCH_ASSOC);
-        $id_tipo_asentamiento = $row_tipo_asent ? $row_tipo_asent['id_tipo_asentamiento'] : 2435439259; // default to 'Colonia'
+        // Validar id_tipo_asentamiento
+        $id_tipo_asentamiento = 2435439259; // default para 'Colonia'
+        if (!is_int($id_tipo_asentamiento) || $id_tipo_asentamiento <= 0) {
+            $id_tipo_asentamiento = null;
+        }
 
         // Concatenar partes de dirección
-        $direccion_completa = trim($direccion . ' ' . $calle . ' ' . $numero . ' ' . $interior);
+        $direccion_completa = trim($calle . ' ' . $numero . ' ' . $interior);
 
         // Insertar dirección en tbl_direcciones
         $stmt_dir = $pdo->prepare("INSERT INTO tbl_direcciones (id_cliente, chr_direccion, id_ciudad, chr_codigo_postal, chr_tipo_direccion, id_tipo_direccion, id_tipo_asentamiento, bit_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        if ($stmt_dir->execute([$cliente_id, $direccion_completa, $id_ciudad, $codigo_postal, $tipo_direccion, $id_tipo_direccion, $id_tipo_asentamiento, $direccion_default])) {
-            $direccion_id = $pdo->lastInsertId();
+        $stmt_dir->execute([$cliente_id, $direccion_completa, $id_ciudad, $codigo_postal, $tipo_direccion, $id_tipo_direccion, $id_tipo_asentamiento, $direccion_default]);
+        $direccion_id = $pdo->lastInsertId();
 
-            // Actualizar cliente con ID de dirección
-            $stmt_update = $pdo->prepare("UPDATE tbl_clientes SET id_direccion_facturacion = ? WHERE id_cliente = ?");
-            $stmt_update->execute([$direccion_id, $cliente_id]);
+        // Actualizar cliente con ID de dirección
+        $stmt_update = $pdo->prepare("UPDATE tbl_clientes SET id_direccion_facturacion = ? WHERE id_cliente = ?");
+        $stmt_update->execute([$direccion_id, $cliente_id]);
 
-            $mensaje = "Cliente registrado exitosamente. ID: " . $cliente_id;
-        } else {
-            $mensaje = "Error al registrar dirección: " . $stmt_dir->errorInfo()[2];
-        }
+        $mensaje = "Cliente registrado exitosamente. ID: " . $cliente_id;
+    }
+} catch (Exception $e) {
+    error_log("Error al registrar cliente: " . $e->getMessage());
+    $errorMessage = $e->getMessage();
+
+    // Detectar error de clave duplicada para el email
+    if (strpos($errorMessage, 'Duplicate entry') !== false && strpos($errorMessage, 'chr_email_UNIQUE') !== false) {
+        $mensaje = "Error: El correo electrónico ya está registrado. Por favor, use otro correo.";
     } else {
-        $mensaje = "Error al registrar cliente: " . $stmt->errorInfo()[2];
+        $mensaje = "Error al registrar cliente: " . htmlspecialchars($errorMessage);
     }
 }
 ?>
@@ -134,57 +172,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Correo*</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Correo*</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefono" name="telefono">
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="telefono" class="form-label">Teléfono</label>
-                        <input type="tel" class="form-control" id="telefono" name="telefono">
-                    </div>
-
-                    <div id="empresa_fields" class="mb-3" style="display: none;">
-                        <div class="mb-3">
+                    <div id="empresa_fields" class="row mb-3" style="display: none;">
+                        <div class="col-md-6">
                             <label for="nombre_empresa" class="form-label">Nombre de la Empresa</label>
                             <input type="text" class="form-control" id="nombre_empresa" name="nombre_empresa">
                         </div>
-                        <div class="mb-3">
+                        <div class="col-md-6">
                             <label for="tax_id" class="form-label">RFC</label>
                             <input type="text" class="form-control" id="tax_id" name="tax_id">
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="limite_credito" class="form-label">Límite de Crédito (MXN)</label>
-                        <input type="number" class="form-control" id="limite_credito" name="limite_credito" step="0.01" min="0" value="0.00">
-                    </div>
-
                     <h4 class="mt-4 mb-3">Dirección de Facturación</h4>
-                    <div class="mb-3">
-                        <label for="direccion" class="form-label">Dirección*</label>
-                        <input type="text" class="form-control" id="direccion" name="direccion" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="calle" class="form-label">Calle</label>
-                        <input type="text" class="form-control" id="calle" name="calle">
-                    </div>
-                    <div class="mb-3">
-                        <label for="numero" class="form-label">Número</label>
-                        <input type="text" class="form-control" id="numero" name="numero">
-                    </div>
-                    <div class="mb-3">
-                        <label for="interior" class="form-label">Interior</label>
-                        <input type="text" class="form-control" id="interior" name="interior">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="calle" class="form-label">Calle</label>
+                            <input type="text" class="form-control" id="calle" name="calle">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="numero" class="form-label">Número</label>
+                            <input type="text" class="form-control" id="numero" name="numero">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="interior" class="form-label">Interior</label>
+                            <input type="text" class="form-control" id="interior" name="interior">
+                        </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="ciudad" class="form-label">Ciudad*</label>
-                            <input type="text" class="form-control" id="ciudad" name="ciudad" required>
-                        </div>
-                        <div class="col-md-6">
                             <label for="codigo_postal" class="form-label">Código Postal*</label>
                             <input type="text" class="form-control" id="codigo_postal" name="codigo_postal" required maxlength="5" onblur="buscarCodigoPostal(this.value)">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ciudad" class="form-label">Ciudad*</label>
+                            <input type="text" class="form-control" id="ciudad" name="ciudad" required>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -199,10 +231,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label for="tipo_asentamiento" class="form-label">Tipo de Asentamiento</label>
-                            <select class="form-select" id="tipo_asentamiento" name="tipo_asentamiento">
-                                <option value="">Seleccionar...</option>
-                            </select>
+                            <!-- Removed Tipo de Asentamiento dropdown -->
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -225,14 +254,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Bootstrap JS y dependencias -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Mostrar/ocultar campos de empresa
+        // Mostrar/ocultar campos de empresa y campos de nombre/apellido
         function toggleEmpresaFields() {
             const tipoEmpresa = document.getElementById('tipo_empresa');
-            document.getElementById('empresa_fields').style.display = tipoEmpresa.checked ? 'block' : 'none';
+            const empresaFields = document.getElementById('empresa_fields');
+            const nombreApellidoRow = document.querySelector('.row.mb-3 > .col-md-6').parentElement; 
+            const nombreInput = document.getElementById('nombre');
+
+            if (tipoEmpresa.checked) {
+                empresaFields.style.display = 'block';
+                nombreApellidoRow.style.display = 'none';
+                nombreInput.removeAttribute('required');
+            } else {
+                empresaFields.style.display = 'none';
+                nombreApellidoRow.style.display = 'flex';
+                nombreInput.setAttribute('required', 'required');
+            }
         }
 
-        document.getElementById('tipo_persona').addEventListener('change', toggleEmpresaFields);
-        document.getElementById('tipo_empresa').addEventListener('change', toggleEmpresaFields);
+document.getElementById('tipo_persona').addEventListener('change', toggleEmpresaFields);
+document.getElementById('tipo_empresa').addEventListener('change', toggleEmpresaFields);
 
         // Inicializar estado al cargar la página
         toggleEmpresaFields();
@@ -254,25 +295,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Llenar dropdowns
                     const asentamientoSelect = document.getElementById('asentamiento');
                     asentamientoSelect.innerHTML = '<option value="">Seleccionar...</option>';
-                    if (data.asentamientos) {
-                        data.asentamientos.forEach(asentamiento => {
+                    if (data.colonias) {
+                        data.colonias.forEach(asentamiento => {
                             const option = document.createElement('option');
-                            option.value = asentamiento;
-                            option.textContent = asentamiento;
+                            option.value = asentamiento.name;
+                            option.textContent = asentamiento.name;
                             asentamientoSelect.appendChild(option);
                         });
                     }
 
-                    const tipoSelect = document.getElementById('tipo_asentamiento');
-                    tipoSelect.innerHTML = '<option value="">Seleccionar...</option>';
-                    if (data.tipos_asentamiento) {
-                        data.tipos_asentamiento.forEach(tipo => {
-                            const option = document.createElement('option');
-                            option.value = tipo.chr_nombre_tipo_asentamiento;
-                            option.textContent = tipo.chr_nombre_tipo_asentamiento;
-                            tipoSelect.appendChild(option);
-                        });
-                    }
 
                     const estadoInput = document.getElementById('estado');
                     if (data.estado) {

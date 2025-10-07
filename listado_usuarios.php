@@ -1,22 +1,36 @@
 <?php
-$sessionPath = '/var/www/html/online_shop_b2b/sessions';
-ini_set('session.save_path', $sessionPath);
-session_start();
+//ini_set('display_errors', 1);
+//ini_set('display_startup_errors', 1);
+//error_reporting(E_ALL);
 
-if (!isset($_SESSION['usuario'])) {
-    if (isset($_SESSION['user'])) {
-        $_SESSION['usuario'] = $_SESSION['user'];
-        unset($_SESSION['user']);
-    } else {
-        header('Location: index.php');
-        exit;
+include 'init_session.php';
+
+if (!isset($_SESSION['user'])) {
+    header('Location: index.php');
+    exit;
+}
+
+require_once("dbConn.php"); // Incluir la conexión a la base de datos
+
+// Obtener todos los clientes con información de usuario y rol si existe
+$stmt = $pdo->query("
+    SELECT c.id_cliente, c.chr_nombre, c.chr_email, u.id_usuario, u.chr_login, u.bit_activo, r.chr_rol_usuario, r.int_nivel_usuario
+    FROM tbl_clientes c
+    LEFT JOIN tbl_usuarios u ON c.id_cliente = u.id_cliente
+    LEFT JOIN tbl_roles_usuario r ON u.int_rol = r.id_rol_usuario
+    ORDER BY c.id_cliente
+");
+$usuariosList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Construir un arreglo asociativo de usuarios por id de cliente
+$usuariosByClient = [];
+foreach ($usuariosList as $usuario) {
+    if ($usuario['id_usuario'] !== null) {
+        $usuariosByClient[$usuario['id_cliente']] = $usuario;
     }
 }
 
-
-require_once("dbConn.php"); // Include the database connection
-
-        // Handle assigning system user/login to a client
+// Manejar la asignación de usuario/sistema a un cliente
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_login'])) {
     $idCliente = $_POST['id_cliente'];
     $usuario = $_POST['usuario'];
@@ -29,13 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_login'])) {
         $assignError = "Las contraseñas no coinciden";
     } else {
         try {
-            // Check if user exists for client
+            // Verificar si el usuario existe para el cliente
             $stmtCheck = $pdo->prepare("SELECT * FROM tbl_usuarios WHERE id_cliente = ?");
             $stmtCheck->execute([$idCliente]);
             $existingUser = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
             if ($existingUser) {
-                // Update password for existing user
+                // Actualizar contraseña para usuario existente
                 $sal = $existingUser['chr_salt'];
                 $contrasenaHasheada = hash('sha256', $contrasena . $sal);
 
@@ -44,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_login'])) {
 
                 $assignSuccess = "¡Contraseña actualizada con éxito!";
             } else {
-                // Insert new user
+                // Insertar nuevo usuario
                 $sal = bin2hex(random_bytes(32));
                 $contrasenaHasheada = hash('sha256', $contrasena . $sal);
 
@@ -67,19 +81,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_login'])) {
     }
 }
 
-// Fetch document types for dropdown
+// Obtener tipos de documentos para el dropdown
 $docTypesStmt = $pdo->query("SELECT id_documento_tipo, chr_nombre FROM tbl_documentos_tipos WHERE bit_activo = 1 ORDER BY chr_nombre");
 $documentTypes = $docTypesStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Handle file upload
+// Manejar subida de archivos
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document']) && isset($_POST['client_id']) && isset($_POST['document_type'])) {
     $client_id = intval($_POST['client_id']);
     $comments = isset($_POST['comments']) ? trim($_POST['comments']) : '';
-    $user_id = $_SESSION['usuario']['id_usuario'] ?? null;
+    $user_id = $_SESSION['user']['id'] ?? null;
     $documentTypeId = intval($_POST['document_type']);
 
     if ($user_id === null) {
-        die("Usuario no autenticado.");
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Usuario no autenticado.']);
+        exit;
     }
 
     if ($_FILES['document']['error'] === UPLOAD_ERR_OK) {
@@ -96,40 +112,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document']) && isset
         $fileType = mime_content_type($fileTmpPath);
         $fileExt = pathinfo($originalName, PATHINFO_EXTENSION);
 
-        // Generate random hex name without extension
+        // Generar nombre hexadecimal aleatorio sin extensión
         $randomName = bin2hex(random_bytes(16));
         $newFileName = $randomName . '.' . $fileExt;
         $destination = $uploadDir . '/' . $newFileName;
 
         if (move_uploaded_file($fileTmpPath, $destination)) {
-            // Save file info to database
+            // Guardar info del archivo en la base de datos
             $stmt = $pdo->prepare("INSERT INTO tbl_documentos (id_documento_tipo, chr_nombre_archivo, chr_ruta_archivo, chr_tipo_archivo, id_usuario_subida, chr_notas, bit_activo) VALUES (?, ?, ?, ?, ?, ?, 1)");
             $relativePath = "uploads/$year/$month/$day/$newFileName";
             $stmt->execute([$documentTypeId, $randomName, $relativePath, $fileExt, $user_id, $comments]);
 
-            // Optionally link document to client in tbl_clientes_documentos
+            // Opcionalmente vincular documento al cliente en tbl_clientes_documentos
             $documentId = $pdo->lastInsertId();
             $stmtLink = $pdo->prepare("INSERT INTO tbl_clientes_documentos (id_cliente, id_documento) VALUES (?, ?)");
             $stmtLink->execute([$client_id, $documentId]);
 
-            // Redirect to avoid form resubmission
-            header("Location: listado_usuarios.php");
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'message' => 'Documento subido correctamente']);
             exit;
         } else {
-            $uploadError = "Error al mover el archivo subido.";
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Error al mover el archivo subido.']);
+            exit;
         }
     } else {
-        $uploadError = "Error en la subida del archivo.";
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Error en la subida del archivo.']);
+        exit;
     }
-}
-
-$stmt = $pdo->query("SELECT * FROM tbl_usuarios");
-$usuariosList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Index users by client ID for quick lookup
-$usuariosByClient = [];
-foreach ($usuariosList as $user) {
-    $usuariosByClient[$user['id_cliente']] = $user;
 }
 
 ?>
@@ -142,7 +153,7 @@ foreach ($usuariosList as $user) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include("menu.php"); // Include the menu ?>
+    <?php include("menu.php"); // Incluir el menú ?>
     <div class="container mt-5" style="margin-left: 200px;">
         <h2>Listado de Usuarios</h2>
 
@@ -157,9 +168,12 @@ foreach ($usuariosList as $user) {
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
                         <th>Usuario</th>
                         <th>Estado</th>
                         <th>Cliente ID</th>
+                        <th>Tipo de Usuario</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -167,9 +181,12 @@ foreach ($usuariosList as $user) {
                     <?php foreach ($usuariosList as $usuario): ?>
                     <tr>
                         <td><?= htmlspecialchars($usuario['id_usuario']) ?></td>
+                        <td><?= htmlspecialchars($usuario['chr_nombre']) ?></td>
+                        <td><?= htmlspecialchars($usuario['chr_email']) ?></td>
                         <td><?= htmlspecialchars($usuario['chr_login']) ?></td>
                         <td><?= $usuario['bit_activo'] ? 'Activo' : 'Inactivo' ?></td>
                         <td><?= htmlspecialchars($usuario['id_cliente']) ?></td>
+                        <td><?= htmlspecialchars($usuario['chr_rol_usuario'] ?? 'Desconocido') ?></td>
                         <td>
                             <?php
                                 $clientId = $usuario['id_cliente'];
@@ -197,7 +214,7 @@ foreach ($usuariosList as $user) {
         </div>
     </div>
 
-    <!-- Modal for Assigning System User -->
+    <!-- Modal para asignar usuario de sistema -->
     <div class="modal fade" id="assignUserModal" tabindex="-1" aria-labelledby="assignUserModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -235,13 +252,13 @@ foreach ($usuariosList as $user) {
         </div>
     </div>
 
-    <!-- Modal for Uploading Documents -->
+    <!-- Modal para subir documentos -->
     <div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-labelledby="uploadDocumentModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="uploadDocumentModalLabel">Subir Documento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <form id="uploadDocumentForm" method="POST" enctype="multipart/form-data">
@@ -290,7 +307,7 @@ foreach ($usuariosList as $user) {
             });
         });
 
-        // Drag and drop functionality
+        // Funcionalidad de arrastrar y soltar
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('document');
 
@@ -313,7 +330,7 @@ foreach ($usuariosList as $user) {
             dropZone.classList.remove('bg-primary', 'text-white');
             if (e.dataTransfer.files.length) {
                 fileInput.files = e.dataTransfer.files;
-                // Show selected file name
+                // Mostrar nombre del archivo seleccionado
                 dropZone.querySelector('p.mb-0').textContent = e.dataTransfer.files[0].name;
             }
         });
@@ -336,43 +353,47 @@ foreach ($usuariosList as $user) {
                 method: 'POST',
                 body: formData,
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error en la subida del documento.');
-                }
-                return response.text();
-            })
-            .then(data => {
-                alert('Documento subido correctamente para el cliente ID: ' + document.getElementById('uploadClientId').value);
-                // Reset form and drop zone text
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la subida del documento.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message + ' para el cliente ID: ' + document.getElementById('uploadClientId').value);
+                // Resetear formulario y texto de drop zone
                 form.reset();
                 dropZone.querySelector('p.mb-0').textContent = 'Arrastra y suelta el archivo aquí';
-                // Close the modal after submission
+                // Cerrar modal después de enviar
                 const uploadModal = bootstrap.Modal.getInstance(document.getElementById('uploadDocumentModal'));
                 uploadModal.hide();
-                // Optionally reload the page or update UI
+                // Opcionalmente recargar la página o actualizar UI
                 window.location.reload();
-            })
-            .catch(error => {
-                alert(error.message);
-            });
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert(error.message);
+        });
         });
 
-        // Assign user modal handling
+        // Manejo del modal para asignar usuario
         document.querySelectorAll('.assign-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const clientId = this.getAttribute('data-client-id');
                 const clientName = this.getAttribute('data-client-name');
                 document.getElementById('assignClientId').value = clientId;
 
-                // Check if user exists for this client and prefill username if so
+                // Verificar si el usuario existe para este cliente y rellenar el nombre de usuario si es así
                 const usuariosByClient = <?= json_encode($usuariosByClient) ?>;
                 if (usuariosByClient[clientId]) {
                     document.getElementById('usuario').value = usuariosByClient[clientId]['chr_login'];
                 } else {
                     document.getElementById('usuario').value = '';
                 }
-                // Clear password fields
+                // Limpiar campos de contraseña
                 document.getElementById('contrasena').value = '';
                 document.getElementById('contrasena_confirm').value = '';
 

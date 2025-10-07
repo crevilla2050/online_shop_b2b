@@ -32,7 +32,7 @@ if (isset($_SESSION['usuario']) && (empty($_SESSION['usuario']['id']) || empty($
     }
 }
 
-include("menu.php"); // Incluir menú de navegación
+include 'menu.php'; // Include menu inside body for navigation
 
 // Manejar envío de formulario para asignar credenciales
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_login'])) {
@@ -86,26 +86,46 @@ $usuarios = $pdo->query("
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .narrow-table {
-            width: auto; /* Adjust to content */
-            max-width: 800px; /* Set a max width */
-            margin: 0 auto; /* Center the table */
+        /* Adjust table width to match detalle_cliente.php */
+        .container {
+            margin-left: 220px; /* Offset for fixed menu */
+            max-width: 900px; /* Match detalle_cliente.php max width */
         }
-
-        .narrow-table th,
-        .narrow-table td {
-            padding: 0.5rem; /* Smaller padding */
-            font-size: 0.9rem; /* Smaller font size */
+        .table-responsive {
+            width: 100%;
         }
+        .table {
+            width: 100% !important;
+        }
+        /* Remove narrow-table styles */
 
-        .narrow-table .btn {
-            font-size: 0.8rem; /* Smaller button text */
-            padding: 0.25rem 0.5rem; /* Smaller button padding */
+        /* Header styles from plaza.php */
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-left: 220px;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <?php include 'menu.php'; ?>
+<div class="container mt-5">
         <?php if (isset($error)): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php elseif (isset($exito)): ?>
@@ -121,7 +141,7 @@ $usuarios = $pdo->query("
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped narrow-table">
+                            <table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>ID</th>

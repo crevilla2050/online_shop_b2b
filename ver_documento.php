@@ -35,13 +35,20 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="p-4">
-    <h2>Documento: <?= htmlspecialchars($document['chr_nombre_archivo']) ?></h2>
-    <p><strong>Tipo:</strong> <?= htmlspecialchars($document['tipo_nombre']) ?></p>
-    <p><strong>Notas:</strong></p>
-    <div class="border p-3 mb-4" style="white-space: pre-wrap;"><?= htmlspecialchars($document['chr_notas']) ?></div>
-    <div>
-        <iframe src="<?= htmlspecialchars($document['chr_ruta_archivo']) ?>" style="width: 100%; height: 600px;" frameborder="0"></iframe>
+    <div class="container">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <p class="mb-2"><strong>Tipo:</strong> <?= htmlspecialchars($document['tipo_nombre']) ?></p>
+                <p class="mb-1"><strong>Notas:</strong></p>
+                <div class="border rounded p-3 mb-3" style="white-space: pre-wrap; background-color: #f8f9fa;"><?= htmlspecialchars($document['chr_notas']) ?></div>
+            </div>
+        </div>
+        <div class="ratio ratio-16x9 mb-3" style="height: 600px;">
+            <iframe src="<?= htmlspecialchars($document['chr_ruta_archivo']) ?>" frameborder="0"></iframe>
+        </div>
+        <div class="text-end">
+            <a href="javascript:window.close()" class="btn btn-secondary">Cerrar</a>
+        </div>
     </div>
-    <a href="javascript:window.close()" class="btn btn-secondary mt-3">Cerrar</a>
 </body>
 </html>

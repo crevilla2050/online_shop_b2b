@@ -1,10 +1,7 @@
 <?php
-// Start session and check login
-$sessionPath = '/var/www/html/online_shop_b2b/sessions';
-ini_set('session.save_path', $sessionPath);
-session_start();
+include 'init_session.php';
 
-if (!isset($_SESSION['usuario'])) {
+if (!isset($_SESSION['user'])) {
     header('Location: index.php');
     exit;
 }
@@ -57,9 +54,13 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
+        body {
+            padding-left: 230px;
+        }
         .container {
             max-width: 600px;
             margin-top: 40px;
+            margin-left: 0;
         }
     </style>
 </head>

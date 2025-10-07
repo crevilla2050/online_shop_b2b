@@ -1,22 +1,22 @@
 <?php
-// Database connection configuration
+// Configuración de la conexión a la base de datos
 $host = 'localhost';
 $dbname = 'db_codigos_postales';
 $username = 'root';
 $password = 't4a2x0a6';
 
 try {
-    // Create PDO connection
-$pdoCP = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    // Crear conexión PDO
+    $pdoCP = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
     
-// Set PDO error mode to exception
-$pdoCP->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$pdoCP->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    // Establecer modo de error de PDO a excepción
+    $pdoCP->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdoCP->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     
-    // Optional: Enable persistent connections
+    // Opcional: Habilitar conexiones persistentes
     // $pdo->setAttribute(PDO::ATTR_PERSISTENT, true);
     
 } catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+    die("Conexión fallida: " . $e->getMessage());
 }
 ?>
